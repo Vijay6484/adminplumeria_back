@@ -176,107 +176,130 @@ try {
 
 // POST /admin/properties/accommodations - Create new accommodation
 routes.post('/accommodations', async (req, res) => {
-    try {
-        const {
-            type,
-            title,
-            description,
-            price,
-            capacity,
-            features,
-            image,
-            has_ac,
-            has_attached_bath,
-            available_rooms,
-            detailed_info
-        } = req.body;
-        
-        const connection = await createConnection();
-        
-        const [result] = await connection.execute(
-            `INSERT INTO accommodations 
-            (type, title, description, price, capacity, features, image, has_ac, has_attached_bath, available_rooms, detailed_info) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-                type,
-                title,
-                description,
-                price,
-                capacity,
-                JSON.stringify(features || []),
-                JSON.stringify(image || []),
-                has_ac || false,
-                has_attached_bath || false,
-                available_rooms,
-                JSON.stringify(detailed_info || {})
-            ]
-        );
-        
-        await closeConnection(connection);
-        res.status(201).json({ 
-            message: 'Accommodation created successfully', 
-            id: result.insertId 
-        });
-    } catch (error) {
-        console.error('Error creating accommodation:', error);
-        res.status(500).json({ error: 'Failed to create accommodation' });
-    }
+  try {
+    const {
+      type,
+      name:title,
+      description,
+      price,
+      capacity,
+      features,
+      image,
+      has_ac,
+      has_attached_bath,
+      capacity:available_rooms,
+      detailed_info
+    } = req.body;
+
+    const connection = await createConnection();
+
+    const [result] = await connection.execute(
+      `INSERT INTO accommodations 
+      (type, title, description, price, capacity, features, image, has_ac, has_attached_bath, available_rooms, detailed_info) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        type ?? null,
+        title ?? null,
+        description ?? null,
+        price ?? null,
+        capacity ?? null,
+        JSON.stringify(features ?? []),
+        JSON.stringify(image ?? []),
+        has_ac ?? false,
+        has_attached_bath ?? false,
+        available_rooms ?? null,
+        JSON.stringify(detailed_info ?? {})
+      ]
+    );
+
+    await closeConnection(connection);
+
+    res.status(201).json({
+      message: 'Accommodation created successfully',
+      id: result.insertId
+    });
+  } catch (error) {
+    console.error('Error creating accommodation:', error);
+    res.status(500).json({ error: 'Failed to create accommodation' });
+  }
 });
+
 
 // PUT /admin/properties/accommodations/:id - Update accommodation
 routes.put('/accommodations/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const {
-            type,
-            title,
-            description,
-            price,
-            capacity,
-            features,
-            image,
-            has_ac,
-            has_attached_bath,
-            available_rooms,
-            detailed_info
-        } = req.body;
-        
-        const connection = await createConnection();
-        
-        const [result] = await connection.execute(
-            `UPDATE accommodations 
-            SET type = ?, title = ?, description = ?, price = ?, capacity = ?, 
-                features = ?, image = ?, has_ac = ?, has_attached_bath = ?, 
-                available_rooms = ?, detailed_info = ?
-            WHERE id = ?`,
-            [
-                type,
-                title,
-                description,
-                price,
-                capacity,
-                JSON.stringify(features || []),
-                JSON.stringify(image || []),
-                has_ac || false,
-                has_attached_bath || false,
-                available_rooms,
-                JSON.stringify(detailed_info || {}),
-                id
-            ]
-        );
-        
-        if (result.affectedRows === 0) {
-            await closeConnection(connection);
-            return res.status(404).json({ error: 'Accommodation not found' });
-        }
-        
-        await closeConnection(connection);
-        res.json({ message: 'Accommodation updated successfully' });
-    } catch (error) {
-        console.error('Error updating accommodation:', error);
-        res.status(500).json({ error: 'Failed to update accommodation' });
+
+  try {
+    const { id } = req.params;
+    const body = req.body;
+    console.log('Updating accommodation with ID:', id, 'Data:', body);
+    const connection = await createConnection();
+
+    // Get current data from DB
+    const [existing] = await connection.execute('SELECT * FROM accommodations WHERE id = ?', [id]);
+    if (existing.length === 0) {
+      await closeConnection(connection);
+      return res.status(404).json({ error: 'Accommodation not found' });
     }
+
+    const current = existing[0];
+
+    // Safe JSON parsing helper
+    const parseJsonSafe = (str, fallback) => {
+      try {
+        return JSON.parse(str);
+      } catch {
+        return fallback;
+      }
+    };
+
+    // Prepare updated values
+    const updatedData = {
+      type: body.type ?? current.type,
+      title: body.title ?? current.title,
+      description: body.description ?? current.description,
+      price: body.price ?? current.price,
+      capacity: body.capacity ?? current.capacity,
+      features: JSON.stringify(body.features ?? parseJsonSafe(current.features, [])),
+      image: JSON.stringify(body.image ?? parseJsonSafe(current.image, [])),
+      has_ac: body.has_ac ?? current.has_ac,
+      has_attached_bath: body.has_attached_bath ?? current.has_attached_bath,
+      available_rooms: body.available_rooms ?? current.available_rooms,
+      detailed_info: JSON.stringify(body.detailed_info ?? parseJsonSafe(current.detailed_info, {}))
+    };
+
+    // Update query
+    const [result] = await connection.execute(
+      `UPDATE accommodations 
+       SET type = ?, title = ?, description = ?, price = ?, capacity = ?, 
+           features = ?, image = ?, has_ac = ?, has_attached_bath = ?, 
+           available_rooms = ?, detailed_info = ?
+       WHERE id = ?`,
+      [
+        updatedData.type,
+        updatedData.title,
+        updatedData.description,
+        updatedData.price,
+        updatedData.capacity,
+        updatedData.features,
+        updatedData.image,
+        updatedData.has_ac,
+        updatedData.has_attached_bath,
+        updatedData.available_rooms,
+        updatedData.detailed_info,
+        id
+      ]
+    );
+
+    await closeConnection(connection);
+    res.json({ message: 'Accommodation updated successfully' });
+
+  } catch (error) {
+    console.error('Error updating accommodation:', error);
+    res.status(500).json({ error: 'Failed to update accommodation' });
+  }
 });
+
+
 
 // DELETE /admin/properties/accommodations/:id - Delete accommodation
 routes.delete('/accommodations/:id', async (req, res) => {

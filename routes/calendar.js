@@ -4,6 +4,7 @@ const pool = require('../dbcon');
 
 // GET /admin/calendar/blocked-dates
 router.get('/blocked-dates', async (req, res) => {
+  console.log('Fetching blocked dates');
   try {
     const [rows] = await pool.execute(`
       SELECT 

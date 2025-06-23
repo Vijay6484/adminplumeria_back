@@ -2,6 +2,8 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const safeParse = require('./utils/safeParse'); // ✅ Added this line
+
 dotenv.config();
 const app = express();
 const port = 5000;
@@ -18,7 +20,14 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
+
 app.use(bodyParser.json());
+
+// ✅ Make safeParse globally available to all routes if needed
+app.use((req, res, next) => {
+  req.safeParse = safeParse;
+  next();
+});
 
 // Import routes
 const propertiesRoutes = require('./routes/properties');
@@ -48,6 +57,3 @@ app.use('/admin/calendar', calendarRoutes);
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
-
-
-// export default app;

@@ -18,7 +18,7 @@ const adminUsersRouter = express.Router();
 adminUsersRouter.get('/', async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT id, name, email, role, status, lastLogin, avatar FROM users ORDER BY id DESC'
+      'SELECT id, name, email, role, status, lastLogin, avatar,password FROM users ORDER BY id DESC'
     );
     
     // Format the response to match frontend expectations
@@ -43,7 +43,7 @@ adminUsersRouter.get('/:id', async (req, res) => {
     const { id } = req.params;
     
     const [rows] = await pool.execute(
-      'SELECT id, name, email, role, status, lastLogin, avatar FROM users WHERE id = ?',
+      'SELECT id, name, email, role, status, lastLogin, avatar,password FROM users WHERE id = ?',
       [id]
     );
     

@@ -7,21 +7,31 @@ const db = pool;
 router.get('/', async (req, res) => {
   try {
     const { search } = req.query;
+    console.log('Fetching coupons with search:', search);
+
     let query = 'SELECT * FROM coupons';
     let queryParams = [];
 
-    if (search) {
-      query += ' WHERE code LIKE ? OR name LIKE ?';
-      queryParams = [`%${search}%`, `%${search}%`];
+    if (search && typeof search === 'string') {
+      query += ' WHERE code = ? OR name = ?';
+      const trimmedSearch = search.trim();
+      queryParams = [trimmedSearch, trimmedSearch];
     }
 
     query += ' ORDER BY createdAt DESC';
 
     const [data] = await db.execute(query, queryParams);
 
+    if (search && data.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Coupon is invalid'
+      });
+    }
+
     res.json({
       success: true,
-      data: data,
+      data,
       message: 'Coupons fetched successfully'
     });
   } catch (error) {
@@ -33,6 +43,8 @@ router.get('/', async (req, res) => {
     });
   }
 });
+
+
 
 // Get single coupon by ID
 router.get('/:id', async (req, res) => {

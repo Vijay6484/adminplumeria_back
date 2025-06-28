@@ -9,19 +9,20 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME || 'u973488458_plumeria',
   port: parseInt(process.env.DB_PORT || '3306'),
   
-  // Valid connection pool options
-  connectionLimit: 5,              // Reduced connection limit
-  waitForConnections: true,        // Wait for connections when pool is full
-  queueLimit: 0,                   // Unlimited queue (but monitor)
+  // Optimized pool settings
+  connectionLimit: 10,
+  waitForConnections: true,
+  queueLimit: 100,
+  connectTimeout: 10000,
+  idleTimeout: 30000,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0,
   
-  // Valid connection options
-  connectTimeout: 10000,           // 10 second connection timeout
-  idleTimeout: 60000,              // Close idle connections after 60s
-  enableKeepAlive: true,           // Maintain connection health
-  keepAliveInitialDelay: 10000     // Start keepalive after 10s
+  // Enable prepared statements
+  namedPlaceholders: true
 });
 
-// Add event listeners for debugging
+// Event listeners for debugging
 pool.on('acquire', (connection) => {
   console.log(`Connection ${connection.threadId} acquired`);
 });
@@ -34,16 +35,22 @@ pool.on('enqueue', () => {
   console.log('Waiting for available connection slot...');
 });
 
+pool.on('connection', (connection) => {
+  console.log(`New connection established: ${connection.threadId}`);
+});
+
 // Graceful shutdown handler
-process.on('SIGINT', async () => {
+const shutdown = async () => {
+  console.log('\n[Shutdown] Closing database pool...');
   try {
     await pool.end();
-    console.log('Pool has ended');
-    process.exit(0);
+    console.log('[Shutdown] Pool closed successfully');
   } catch (err) {
-    console.error('Error closing pool:', err);
-    process.exit(1);
+    console.error('[Shutdown] Error closing pool:', err);
   }
-});
+};
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
 
 module.exports = pool;

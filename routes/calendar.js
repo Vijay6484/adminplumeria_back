@@ -30,7 +30,7 @@ router.get('/blocked-dates', async (req, res) => {
         bd.blocked_date, 
         bd.reason, 
         bd.accommodation_id, 
-        a.title AS accommodation_name,
+        a.name AS accommodation_name,
         bd.adult_price,
         bd.child_price
       FROM blocked_dates bd

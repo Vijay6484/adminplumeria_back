@@ -48,17 +48,39 @@ router.get('/recent-bookings', async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT 
-        b.id, b.guest_name AS guestName, b.guest_email AS email, 
-        a.title AS accommodation, b.check_in AS checkIn, 
-        b.total_amount AS amount, b.payment_status AS status
+        b.id, 
+        b.guest_name AS guestName, 
+        b.guest_email AS email, 
+        a.name AS accommodation,  -- Changed from a.title to a.name
+        b.check_in AS checkIn, 
+        b.total_amount AS amount, 
+        b.payment_status AS status
       FROM bookings b
       LEFT JOIN accommodations a ON b.accommodation_id = a.id
       ORDER BY b.created_at DESC
       LIMIT 5
     `);
+    
     res.json(rows);
+    
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch recent bookings' });
+    console.error('Database error details:', {
+      message: err.message,
+      code: err.code,
+      sqlState: err.sqlState,
+      sql: err.sql
+    });
+    
+    res.status(500).json({ 
+      error: 'Failed to fetch recent bookings',
+      ...(process.env.NODE_ENV === 'development' && {
+        details: {
+          message: err.message,
+          code: err.code,
+          sqlState: err.sqlState
+        }
+      })
+    });
   }
 });
 

@@ -229,9 +229,11 @@ routes.get('/accommodations', async (req, res) => {
 // GET /admin/properties/accommodations/:id - Fetch single accommodation
 routes.get('/accommodations/:id', async (req, res) => {
     const { id } = req.params;
-
-    // Validate ID is a positive integer
-    if (!Number.isInteger(Number(id)) || id <= 0) {
+    console.log('Fetching accommodation with ID:', id);
+    
+    // Validate ID is a non-negative integer (including 0)
+    if (!Number.isInteger(Number(id)) || Number(id) < 0) {
+        console.log("Invalid ID format");
         return res.status(400).json({ error: 'Invalid accommodation ID format' });
     }
 
@@ -241,7 +243,6 @@ routes.get('/accommodations/:id', async (req, res) => {
         const [rows] = await connection.execute(
             `SELECT 
                 a.*,
-                (a.available_rooms > 0) as available,
                 u.name as owner_name,
                 c.name as city_name,
                 c.country as country
@@ -270,6 +271,9 @@ routes.get('/accommodations/:id', async (req, res) => {
             }
         };
 
+        // Determine availability - you might need to adjust this logic based on your actual business rules
+        const isAvailable = true; // Replace with your actual availability logic
+
         // Transform database fields to frontend structure
         const response = {
             id: accommodation.id,
@@ -280,7 +284,7 @@ routes.get('/accommodations/:id', async (req, res) => {
                 capacity: accommodation.capacity || 2,
                 rooms: accommodation.rooms || 1,
                 price: accommodation.price || 0,
-                available: Boolean(accommodation.available),
+                available: isAvailable, // Using the availability flag
                 features: parseJSONField(accommodation.features, []),
                 images: parseJSONField(accommodation.images, [])
             },
@@ -326,12 +330,13 @@ routes.get('/accommodations/:id', async (req, res) => {
         console.error('Error fetching accommodation:', error);
 
         // Handle specific SQL errors
-        if (error.code === 'ER_PARSE_ERROR') {
+        if (error.code === 'ER_PARSE_ERROR' || error.code === 'ER_BAD_FIELD_ERROR') {
             return res.status(500).json({
                 error: 'Database query error',
                 details: process.env.NODE_ENV === 'development' ? {
                     message: error.message,
-                    sql: error.sql
+                    sql: error.sql,
+                    code: error.code
                 } : undefined
             });
         }
@@ -341,7 +346,8 @@ routes.get('/accommodations/:id', async (req, res) => {
             ...(process.env.NODE_ENV === 'development' && {
                 details: {
                     message: error.message,
-                    stack: error.stack
+                    stack: error.stack,
+                    code: error.code
                 }
             })
         });

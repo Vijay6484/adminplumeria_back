@@ -2,6 +2,8 @@ const mysql = require('mysql2/promise');
 const dotenv = require('dotenv');
 dotenv.config();
 
+const activeConnections = new Set();
+
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'in-mum-web1671.main-hosting.eu',
   user: process.env.DB_USER || 'u973488458_plumeria',
@@ -9,45 +11,59 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME || 'u973488458_plumeria',
   port: parseInt(process.env.DB_PORT || '3306'),
   
-  // Optimized pool settings
-  connectionLimit: 10,
-  waitForConnections: true,
-  queueLimit: 100,
+  // Conservative pool settings
+  connectionLimit: 5,
+  waitForConnections: false,
+  queueLimit: 0,
   connectTimeout: 10000,
   idleTimeout: 30000,
+  maxIdle: 2,
   enableKeepAlive: true,
-  keepAliveInitialDelay: 0,
-  
-  // Enable prepared statements
+  keepAliveInitialDelay: 10000,
   namedPlaceholders: true
 });
 
-// Event listeners for debugging
+// Connection monitoring
 pool.on('acquire', (connection) => {
-  console.log(`Connection ${connection.threadId} acquired`);
+  activeConnections.add(connection.threadId);
+  console.log(`Connection acquired (${connection.threadId}), Active: ${activeConnections.size}`);
+  
+  // Set timeout to detect leaks
+  connection.leakTimer = setTimeout(() => {
+    console.error(`Connection ${connection.threadId} potentially leaked!`);
+  }, 60000);
 });
 
 pool.on('release', (connection) => {
-  console.log(`Connection ${connection.threadId} released`);
+  activeConnections.delete(connection.threadId);
+  clearTimeout(connection.leakTimer);
+  console.log(`Connection released (${connection.threadId}), Active: ${activeConnections.size}`);
 });
 
-pool.on('enqueue', () => {
-  console.log('Waiting for available connection slot...');
-});
-
-pool.on('connection', (connection) => {
-  console.log(`New connection established: ${connection.threadId}`);
-});
-
-// Graceful shutdown handler
-const shutdown = async () => {
-  console.log('\n[Shutdown] Closing database pool...');
-  try {
-    await pool.end();
-    console.log('[Shutdown] Pool closed successfully');
-  } catch (err) {
-    console.error('[Shutdown] Error closing pool:', err);
+pool.on('error', (err) => {
+  console.error('Pool error:', err);
+  if (err.code === 'ER_USER_LIMIT_REACHED') {
+    console.log('Waiting 10 seconds before retrying...');
+    setTimeout(() => pool.getConnection().then(conn => conn.release()), 10000);
   }
+});
+
+// Health check
+async function checkPoolHealth() {
+  console.log(`Pool status: Total=${pool.totalCount}, Active=${activeConnections.size}, Idle=${pool.idleCount}`);
+  
+  if (activeConnections.size > 20) {
+    console.warn('WARNING: Approaching connection limit!');
+  }
+}
+
+setInterval(checkPoolHealth, 30000);
+
+// Graceful shutdown
+const shutdown = async () => {
+  console.log('\nClosing pool with', activeConnections.size, 'active connections...');
+  await pool.end();
+  process.exit();
 };
 
 process.on('SIGINT', shutdown);

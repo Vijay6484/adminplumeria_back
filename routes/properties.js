@@ -230,7 +230,7 @@ routes.get('/accommodations', async (req, res) => {
 routes.get('/accommodations/:id', async (req, res) => {
     const { id } = req.params;
     console.log('Fetching accommodation with ID:', id);
-    
+
     // Validate ID is a non-negative integer (including 0)
     if (!Number.isInteger(Number(id)) || Number(id) < 0) {
         console.log("Invalid ID format");
@@ -359,38 +359,50 @@ routes.get('/accommodations/:id', async (req, res) => {
 // POST /admin/properties/accommodations - Create new accommodation
 routes.post('/accommodations', async (req, res) => {
     try {
+        // Destructure nested structure from frontend
         const {
-            name, // Frontend sends as "name"
-            description,
-            type,
-            capacity,
-            rooms,
-            price,
-            features = [], // Default empty array
-            images = [], // Default empty array
-            available = true, // Default true
+            basicInfo,
+            location,
+            amenities,
             ownerId,
-            cityId,
-            address,
-            latitude,
-            longitude,
-            amenityIds = [], // Default empty array
-            packageName,
-            packageDescription,
-            packageImages = [], // Default empty array
-            adultPrice = 0, // Default 0
-            childPrice = 0, // Default 0
-            maxGuests = 2 // Default 2
+            packages
         } = req.body;
 
         // Validate required fields
-        if (!name || !type || !capacity || !rooms || !price) {
+        if (!basicInfo || !basicInfo.name || !basicInfo.type || 
+            !basicInfo.capacity || !basicInfo.rooms || !basicInfo.price) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
         const connection = await createConnection();
 
-        // Use parameter names that match your database columns
+        // Extract values from nested structure
+        const { 
+            name, 
+            description, 
+            type, 
+            capacity, 
+            rooms, 
+            price, 
+            features = [], 
+            images = [], 
+            available = true 
+        } = basicInfo;
+
+        const address = location?.address || null;
+        const cityId = location?.cityId || null;
+        const latitude = location?.coordinates?.latitude || null;
+        const longitude = location?.coordinates?.longitude || null;
+        const amenityIds = amenities?.ids || [];
+
+        const packageName = packages?.name || null;
+        const packageDescription = packages?.description || null;
+        const packageImages = packages?.images || [];
+        const adultPrice = packages?.pricing?.adult || 0;
+        const childPrice = packages?.pricing?.child || 0;
+        const maxGuests = packages?.pricing?.maxGuests || 2;
+
+        // Insert into database
         const [result] = await connection.execute(
             `INSERT INTO accommodations 
             (name, description, type, capacity, rooms, price, features, images, available, owner_id, city_id, 
@@ -409,12 +421,12 @@ routes.post('/accommodations', async (req, res) => {
                 available,
                 ownerId || null,
                 cityId || null,
-                address || null,
-                latitude || null,
-                longitude || null,
+                address,
+                latitude,
+                longitude,
                 JSON.stringify(amenityIds),
-                packageName || null,
-                packageDescription || null,
+                packageName,
+                packageDescription,
                 JSON.stringify(packageImages),
                 adultPrice,
                 childPrice,
@@ -427,18 +439,14 @@ routes.post('/accommodations', async (req, res) => {
         res.status(201).json({
             message: 'Accommodation created successfully',
             id: result.insertId,
-            name: name // Return the name for confirmation
+            name: name
         });
 
     } catch (error) {
         console.error('Error creating accommodation:', error);
         res.status(500).json({
             error: 'Failed to create accommodation',
-            details: process.env.NODE_ENV === 'development' ? {
-                message: error.message,
-                sqlMessage: error.sqlMessage,
-                code: error.code
-            } : undefined
+            details: process.env.NODE_ENV === 'development' ? error : undefined
         });
     }
 });
@@ -447,136 +455,182 @@ routes.post('/accommodations', async (req, res) => {
 // PUT /admin/properties/accommodations/:id - Update accommodation
 routes.put('/accommodations/:id', async (req, res) => {
     const { id } = req.params;
-
-    // Validate ID is a positive integer
-    if (!Number.isInteger(Number(id))) {
-        return res.status(400).json({ error: 'Invalid accommodation ID' });
-    }
+    console.log('Updating accommodation with ID:', id);
+    // Validate ID
+    // if (!id || !Number.isInteger(Number(id)) || Number(id) <= 0) {
+    //     return res.status(400).json({ error: 'Invalid accommodation ID' });
+    // }
 
     try {
         const connection = await createConnection();
+        await connection.beginTransaction();
 
-        // Check if accommodation exists first
-        const [existing] = await connection.execute(
-            'SELECT * FROM accommodations WHERE id = ?',
-            [id]
-        );
+        try {
+            // Check if accommodation exists
+            const [existing] = await connection.execute(
+                'SELECT * FROM accommodations WHERE id = ? FOR UPDATE',
+                [id]
+            );
 
-        if (existing.length === 0) {
+            if (existing.length === 0) {
+                await connection.rollback();
+                await closeConnection(connection);
+                return res.status(404).json({ error: 'Accommodation not found' });
+            }
+
+            const current = existing[0];
+            const requestBody = req.body;
+            console.log(requestBody)
+            // Input validation function
+            const validateInput = (field, type, required = false) => {
+                if (required && field === undefined) {
+                    throw new Error(`Missing required field`);
+                }
+
+                switch (type) {
+                    case 'number':
+                        if (field !== undefined && isNaN(Number(field))) {
+                            throw new Error(`Invalid number value`);
+                        }
+                        return field !== undefined ? Number(field) : field;
+                    case 'array':
+                        if (field && !Array.isArray(field)) {
+                            try {
+                                return JSON.parse(field);
+                            } catch (e) {
+                                throw new Error(`Invalid array format`);
+                            }
+                        }
+                        return field;
+                    case 'boolean':
+                        return Boolean(field);
+                    default:
+                        return field;
+                }
+            };
+
+            // Extract values from nested structure
+            const basicInfo = requestBody.basicInfo || {};
+            const location = requestBody.location || {};
+            const amenities = requestBody.amenities || {};
+            const packages = requestBody.packages || {};
+            
+            // Prepare update data with validation
+            const updateData = {
+                name: validateInput(basicInfo.name ?? current.name, 'string', true),
+                description: validateInput(basicInfo.description ?? current.description, 'string', true),
+                type: validateInput(basicInfo.type ?? current.type, 'string', true),
+                capacity: validateInput(basicInfo.capacity ?? current.capacity, 'number', true),
+                rooms: validateInput(basicInfo.rooms ?? current.rooms, 'number', true),
+                price: validateInput(basicInfo.price ?? current.price, 'number', true),
+                features: JSON.stringify(validateInput(basicInfo.features ?? current.features, 'array')),
+                images: JSON.stringify(validateInput(basicInfo.images ?? current.images, 'array')),
+                available: validateInput(basicInfo.available ?? current.available, 'boolean'),
+                owner_id: validateInput(requestBody.ownerId ?? current.owner_id, 'number'),
+                city_id: validateInput(location.cityId ?? current.city_id, 'number'),
+                address: validateInput(location.address ?? current.address, 'string'),
+                latitude: validateInput(location.coordinates?.latitude ?? current.latitude, 'number'),
+                longitude: validateInput(location.coordinates?.longitude ?? current.longitude, 'number'),
+                amenity_ids: JSON.stringify(validateInput(amenities.ids ?? current.amenity_ids, 'array')),
+                package_name: validateInput(packages.name ?? current.package_name, 'string'),
+                package_description: validateInput(packages.description ?? current.package_description, 'string'),
+                package_images: JSON.stringify(validateInput(packages.images ?? current.package_images, 'array')),
+                adult_price: validateInput(packages.pricing?.adult ?? current.adult_price, 'number'),
+                child_price: validateInput(packages.pricing?.child ?? current.child_price, 'number'),
+                max_guests: validateInput(packages.pricing?.maxGuests ?? current.max_guests, 'number')
+            };
+
+            // Additional validation
+            if (updateData.capacity <= 0 || updateData.rooms <= 0 || updateData.price <= 0) {
+                throw new Error('Capacity, rooms, and price must be positive numbers');
+            }
+
+            // Execute update
+            const [result] = await connection.execute(
+                `UPDATE accommodations SET
+                    name = ?, 
+                    description = ?, 
+                    type = ?, 
+                    capacity = ?, 
+                    rooms = ?,
+                    price = ?, 
+                    features = ?, 
+                    images = ?, 
+                    available = ?, 
+                    owner_id = ?,
+                    city_id = ?, 
+                    address = ?, 
+                    latitude = ?, 
+                    longitude = ?, 
+                    amenity_ids = ?,
+                    package_name = ?, 
+                    package_description = ?, 
+                    package_images = ?,
+                    adult_price = ?, 
+                    child_price = ?, 
+                    max_guests = ?,
+                    updated_at = CURRENT_TIMESTAMP()
+                WHERE id = ?`,
+                [
+                    updateData.name,
+                    updateData.description,
+                    updateData.type,
+                    updateData.capacity,
+                    updateData.rooms,
+                    updateData.price,
+                    updateData.features,
+                    updateData.images,
+                    updateData.available,
+                    updateData.owner_id,
+                    updateData.city_id,
+                    updateData.address,
+                    updateData.latitude,
+                    updateData.longitude,
+                    updateData.amenity_ids,
+                    updateData.package_name,
+                    updateData.package_description,
+                    updateData.package_images,
+                    updateData.adult_price,
+                    updateData.child_price,
+                    updateData.max_guests,
+                    id
+                ]
+            );
+
+            if (result.affectedRows === 0) {
+                await connection.rollback();
+                await closeConnection(connection);
+                return res.status(404).json({ error: 'No changes made' });
+            }
+
+            await connection.commit();
             await closeConnection(connection);
-            return res.status(404).json({ error: 'Accommodation not found' });
-        }
 
-        const current = existing[0];
+            res.status(200).json({
+                id: id,
+                message: 'Accommodation updated successfully'
+            });
 
-        // Destructure with defaults
-        const {
-            name = current.name,
-            description = current.description,
-            type = current.type,
-            capacity = current.capacity,
-            rooms = current.rooms,
-            price = current.price,
-            features = current.features,
-            images = current.images,
-            available = current.available,
-            ownerId = current.owner_id,
-            cityId = current.city_id,
-            address = current.address,
-            latitude = current.latitude,
-            longitude = current.longitude,
-            amenityIds = current.amenity_ids,
-            packageName = current.package_name,
-            packageDescription = current.package_description,
-            packageImages = current.package_images,
-            adultPrice = current.adult_price,
-            childPrice = current.child_price,
-            maxGuests = current.max_guests
-        } = req.body;
-
-        // Validate required fields
-        if (!name || !type || !capacity || !rooms || !price) {
+        } catch (error) {
+            await connection.rollback();
             await closeConnection(connection);
-            return res.status(400).json({ error: 'Missing required fields' });
-        }
+            console.error('Error updating accommodation:', error);
+            
+            if (error.message.includes('Missing required') || 
+                error.message.includes('Invalid number') ||
+                error.message.includes('must be positive')) {
+                return res.status(400).json({ error: error.message });
+            }
 
-        // Prepare update data
-        const updateData = {
-            name,
-            description,
-            type,
-            capacity,
-            rooms,
-            price,
-            features: JSON.stringify(Array.isArray(features)) ? features : JSON.parse(features || '[]'),
-            images: JSON.stringify(Array.isArray(images)) ? images : JSON.parse(images || '[]'),
-            available,
-            owner_id: ownerId,
-            city_id: cityId,
-            address,
-            latitude,
-            longitude,
-            amenity_ids: JSON.stringify(Array.isArray(amenityIds) ? amenityIds : JSON.parse(amenityIds || '[]')),
-            package_name: packageName,
-            package_description: packageDescription,
-            package_images: JSON.stringify(Array.isArray(packageImages)) ? packageImages : JSON.parse(packageImages || '[]'),
-            adult_price: adultPrice,
-            child_price: childPrice,
-            max_guests: maxGuests
-        };
-
-        // Execute update
-        const [result] = await connection.execute(
-            `UPDATE accommodations SET
-                name = ?, description = ?, type = ?, capacity = ?, rooms = ?,
-                price = ?, features = ?, images = ?, available = ?, owner_id = ?,
-                city_id = ?, address = ?, latitude = ?, longitude = ?, amenity_ids = ?,
-                package_name = ?, package_description = ?, package_images = ?,
-                adult_price = ?, child_price = ?, max_guests = ?,
-                updated_at = CURRENT_TIMESTAMP()
-            WHERE id = ?`,
-            [...Object.values(updateData), id]
-        );
-
-        await closeConnection(connection);
-
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'No changes made or accommodation not found' });
-        }
-
-        // Get updated record
-        const [updated] = await connection.execute(
-            'SELECT * FROM accommodations WHERE id = ?',
-            [id]
-        );
-
-        res.status(200).json({
-            message: 'Accommodation updated successfully',
-            data: updated[0],
-            changedFields: Object.keys(req.body)
-        });
-
-    } catch (error) {
-        console.error('Error updating accommodation:', error);
-
-        // Handle specific SQL errors
-        if (error.code === 'ER_TRUNCATED_WRONG_VALUE_FOR_FIELD') {
-            return res.status(400).json({
-                error: 'Invalid data type for one or more fields',
-                field: error.sqlMessage?.match(/column '(.*?)'/i)?.[1]
+            res.status(500).json({ 
+                error: 'Failed to update accommodation',
+                details: process.env.NODE_ENV === 'development' ? error.message : undefined
             });
         }
 
-        res.status(500).json({
-            error: 'Failed to update accommodation',
-            ...(process.env.NODE_ENV === 'development' && {
-                details: {
-                    message: error.message,
-                    sqlMessage: error.sqlMessage,
-                    code: error.code
-                }
-            })
-        });
+    } catch (error) {
+        console.error('Database connection error:', error);
+        res.status(500).json({ error: 'Database connection failed' });
     }
 });
 

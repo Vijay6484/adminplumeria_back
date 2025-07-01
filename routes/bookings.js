@@ -293,7 +293,7 @@ router.post('/', async (req, res) => {
       const paymentData = {
         key: PAYU_MERCHANT_KEY,
         txnid,
-        amount: String(amount),
+        amount: amount,
         productinfo,
         firstname,
         email,

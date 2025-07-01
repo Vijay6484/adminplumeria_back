@@ -638,7 +638,7 @@ routes.put('/accommodations/:id', async (req, res) => {
 // DELETE /admin/properties/accommodations/:id - Delete accommodation
 routes.delete('/accommodations/:id', async (req, res) => {
     const { id } = req.params;
-
+    console.log('Deleting accommodation with ID:', id);
     // Validate ID is a positive integer
     if (!Number.isInteger(Number(id)) || id <= 0) {
         return res.status(400).json({ error: 'Invalid accommodation ID format' });
@@ -647,7 +647,6 @@ routes.delete('/accommodations/:id', async (req, res) => {
     const connection = await createConnection();
 
     try {
-        // Start transaction for atomic operations
         await connection.beginTransaction();
 
         // 1. Check if accommodation exists
@@ -661,50 +660,28 @@ routes.delete('/accommodations/:id', async (req, res) => {
             return res.status(404).json({ error: 'Accommodation not found' });
         }
 
-        // 2. Check for dependent records (bookings, reviews, etc.)
-        const [bookings] = await connection.execute(
-            'SELECT COUNT(*) as bookingCount FROM bookings WHERE accommodation_id = ?',
-            [id]
-        );
+        // 2. Delete from all child tables
+        const childTables = [
+            'blocked_dates',
+            'accommodation_amenities',
+            'bookings',
+            'reviews',
+            'packages'
+        ];
 
-        const [reviews] = await connection.execute(
-            'SELECT COUNT(*) as reviewCount FROM reviews WHERE accommodation_id = ?',
-            [id]
-        );
-
-        const [packages] = await connection.execute(
-            'SELECT COUNT(*) as packageCount FROM packages WHERE accommodation_id = ?',
-            [id]
-        );
-
-        if (bookings[0].bookingCount > 0 ||
-            reviews[0].reviewCount > 0 ||
-            packages[0].packageCount > 0) {
-
-            await connection.rollback();
-            return res.status(409).json({
-                error: 'Cannot delete accommodation with related records',
-                details: {
-                    bookings: bookings[0].bookingCount,
-                    reviews: reviews[0].reviewCount,
-                    packages: packages[0].packageCount
-                }
-            });
+        for (const table of childTables) {
+            try {
+                await connection.execute(
+                    `DELETE FROM ${table} WHERE accommodation_id = ?`,
+                    [id]
+                );
+            } catch (err) {
+                // Ignore "table doesn't exist" errors
+                if (err.code !== 'ER_NO_SUCH_TABLE') throw err;
+            }
         }
 
-        // 3. Delete from blocked_dates first (if exists)
-        await connection.execute(
-            'DELETE FROM blocked_dates WHERE accommodation_id = ?',
-            [id]
-        );
-
-        // 4. Delete from amenities mapping table (if exists)
-        await connection.execute(
-            'DELETE FROM accommodation_amenities WHERE accommodation_id = ?',
-            [id]
-        );
-
-        // 5. Finally delete the accommodation
+        // 3. Finally delete the accommodation
         const [result] = await connection.execute(
             'DELETE FROM accommodations WHERE id = ?',
             [id]
@@ -723,23 +700,32 @@ routes.delete('/accommodations/:id', async (req, res) => {
 
     } catch (error) {
         await connection.rollback();
-        console.error('Error deleting accommodation:', error);
+        console.error('Database error deleting accommodation:', error);
 
-        // Handle foreign key constraint errors
+        // More specific error handling
+        let errorMessage = 'Failed to delete accommodation';
+        let errorDetails = {};
+        
         if (error.code === 'ER_ROW_IS_REFERENCED_2') {
-            return res.status(409).json({
-                error: 'Cannot delete - accommodation is referenced by other records',
-                hint: 'Please delete related bookings, reviews, or packages first'
-            });
+            errorMessage = 'Cannot delete - accommodation is referenced by other records';
+            errorDetails = { hint: 'Please delete related bookings or reviews first' };
+        } else if (error.code === 'ER_NO_REFERENCED_ROW_2') {
+            errorMessage = 'Referenced record not found';
+            errorDetails = { hint: 'Database consistency issue detected' };
+        } else if (error.code === 'ER_NO_SUCH_TABLE') {
+            errorMessage = 'Database table missing';
+            errorDetails = { missingTable: error.sqlMessage.match(/Table '(.+)'/)[1] };
         }
 
         res.status(500).json({
-            error: 'Failed to delete accommodation',
-            ...(process.env.NODE_ENV === 'development' && {
+            error: errorMessage,
+            ...errorDetails,
+            // Always include debug info in development
+            ...(process.env.NODE_ENV !== 'production' && {
                 details: {
+                    code: error.code,
                     message: error.message,
-                    sqlMessage: error.sqlMessage,
-                    code: error.code
+                    sql: error.sql
                 }
             })
         });
@@ -747,7 +733,6 @@ routes.delete('/accommodations/:id', async (req, res) => {
         await closeConnection(connection);
     }
 });
-
 // PATCH /admin/properties/accommodations/:id/toggle-availability - Toggle availability
 routes.patch('/accommodations/:id/toggle-availability', async (req, res) => {
     try {

@@ -6,7 +6,7 @@ const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 const payu_key = process.env.PAYU_MERCHANT_KEY;
 const payu_salt = process.env.PAYU_MERCHANT_SALT;
-const PAYU_BASE_URL = 'https://test.payu.in';
+const PAYU_BASE_URL = 'https://test.payu.in'; // Use test environment for developmen
 
 // BOOKING CLEANUP JOB
 const bookingCleanup = () => {
@@ -177,9 +177,8 @@ router.post('/payments/payu', async (req, res) => {
     const truncatedFirstname = firstname.substring(0, 60);
     const truncatedEmail = email.substring(0, 50);
 
-    const hashString = `${payu_key}|${txnid}|${amount}|${truncatedProductinfo}|${truncatedFirstname}|${truncatedEmail}|${udf1}|${udf2}|${udf3}|${udf4}|${udf5}||||||${payu_salt}`;
+    const hashString =` ${payu_key}|${txnid}|${amountNum}|${truncatedProductinfo}|${truncatedFirstname}|${truncatedEmail}|||||||||||${payu_salt}`;
     const hash = crypto.createHash('sha512').update(hashString).digest('hex');
-
     await pool.execute('UPDATE bookings SET payment_txn_id = ?, payment_status = "pending" WHERE id = ?', [txnid, booking_id]);
 
     const paymentData = {

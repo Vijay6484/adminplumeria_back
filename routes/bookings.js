@@ -3,8 +3,12 @@ const router = express.Router();
 const pool = require('../dbcon');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
+require('dotenv').config();
+const payu_key = process.env.PAYU_MERCHANT_KEY;
+const payu_salt = process.env.PAYU_MERCHANT_SALT;
+const PAYU_BASE_URL = 'https://test.payu.in';
 
-// BOOKING CLEANUP JOB - RUNS AUTOMATICALLY
+// BOOKING CLEANUP JOB
 const bookingCleanup = () => {
   setInterval(async () => {
     try {
@@ -18,16 +22,15 @@ const bookingCleanup = () => {
     } catch (error) {
       console.error('Booking cleanup error:', error);
     }
-  }, 30 * 60 * 1000); // Run every 30 minutes
+  }, 30 * 60 * 1000); // every 30 minutes
 };
 bookingCleanup();
 
-// GET /admin/bookings - fetch all bookings with pagination
+// GET /admin/bookings - fetch all bookings
 router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
-
     const [bookings] = await pool.execute(`
       SELECT 
         b.id,
@@ -65,143 +68,78 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching bookings:', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: 'Failed to fetch bookings',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
 
-// POST /admin/bookings - create a new booking with transaction
+// POST /admin/bookings - create booking
 router.post('/', async (req, res) => {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
-
     const {
-      guest_name,
-      guest_email,
-      guest_phone,
-      accommodation_id,
-      package_id,
-      check_in,
-      check_out,
-      adults = 1,
-      children = 0,
-      rooms = 1,
-      food_veg = 0,
-      food_nonveg = 0,
-      food_jain = 0,
-      total_amount,
-      advance_amount = 0,
-      payment_method = 'payu',
+      guest_name, guest_email, guest_phone, accommodation_id, package_id,
+      check_in, check_out, adults = 1, children = 0, rooms = 1,
+      food_veg = 0, food_nonveg = 0, food_jain = 0, total_amount,
+      advance_amount = 0, payment_method = 'payu'
     } = req.body;
 
-    // Required fields validation
     const requiredFields = ['guest_name', 'accommodation_id', 'package_id', 'check_in', 'check_out', 'total_amount'];
     const missingFields = requiredFields.filter(field => !req.body[field]);
 
     if (missingFields.length > 0) {
-      return res.status(400).json({
-        success: false,
-        error: `Missing required fields: ${missingFields.join(', ')}`
-      });
+      return res.status(400).json({ success: false, error: `Missing required fields: ${missingFields.join(', ')}` });
     }
 
-    // Food preferences validation
     const totalGuests = adults + children;
     const totalFood = food_veg + food_nonveg + food_jain;
     if (totalFood !== totalGuests) {
-      return res.status(400).json({
-        success: false,
-        error: 'Food preferences must match total number of guests'
-      });
+      return res.status(400).json({ success: false, error: 'Food preferences must match total guests' });
     }
 
-    // Date validation
     if (new Date(check_in) >= new Date(check_out)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Check-out date must be after check-in date'
-      });
+      return res.status(400).json({ success: false, error: 'Check-out must be after check-in' });
     }
 
-    // Amount validation
     if (total_amount <= 0 || advance_amount < 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid amount values'
-      });
+      return res.status(400).json({ success: false, error: 'Invalid amount values' });
     }
 
-    // Guest count validation
     if (adults < 1 || rooms < 1) {
-      return res.status(400).json({
-        success: false,
-        error: 'Must have at least 1 adult and 1 room'
-      });
+      return res.status(400).json({ success: false, error: 'Must have at least 1 adult and 1 room' });
     }
 
-    // ALWAYS SET INITIAL STATUS TO PENDING
     const payment_status = 'pending';
     const payment_txn_id = `BOOK-${uuidv4()}`;
 
-    // Create booking
-    const [result] = await connection.execute(
-      `INSERT INTO bookings (
+    const [result] = await connection.execute(`
+      INSERT INTO bookings (
         guest_name, guest_email, guest_phone, accommodation_id, package_id,
         check_in, check_out, adults, children, rooms, food_veg, food_nonveg, 
-        food_jain, total_amount, advance_amount, payment_status, 
-        payment_txn_id, created_at
+        food_jain, total_amount, advance_amount, payment_status, payment_txn_id, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        guest_name, 
-        guest_email, 
-        guest_phone || null,
-        accommodation_id, 
-        package_id,
-        check_in, 
-        check_out,
-        adults, 
-        children, 
-        rooms, 
-        food_veg, 
-        food_nonveg, 
-        food_jain, 
-        total_amount,
-        advance_amount, 
-        payment_status,
-        payment_txn_id, 
-        new Date()
+        guest_name, guest_email, guest_phone || null, accommodation_id, package_id,
+        check_in, check_out, adults, children, rooms, food_veg, food_nonveg,
+        food_jain, total_amount, advance_amount, payment_status, payment_txn_id, new Date()
       ]
     );
 
     await connection.commit();
 
-    res.json({
-      success: true,
-      data: {
-        booking_id: result.insertId,
-        payment_txn_id,
-        payment_status
-      }
-    });
+    res.json({ success: true, data: { booking_id: result.insertId, payment_txn_id, payment_status } });
 
   } catch (error) {
     await connection.rollback();
     console.error('Error creating booking:', error);
-    
-    const errorDetails = process.env.NODE_ENV === 'development' ? {
-      message: error.message,
-      stack: error.stack,
-      sql: error.sql
-    } : undefined;
-    
     res.status(500).json({
       success: false,
       error: 'Failed to create booking',
-      details: errorDetails
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   } finally {
     connection.release();
@@ -209,345 +147,130 @@ router.post('/', async (req, res) => {
 });
 
 // POST /admin/bookings/payments/payu - Initiate PayU payment
-  router.post('/payments/payu', async (req, res) => {
-    try {
-      const PAYU_MERCHANT_KEY = "rFrruE9E";
-      const PAYU_MERCHANT_SALT = "DvYeVsKfYU";
-      const PAYU_BASE_URL = 'https://secure.payu.in/_payment';
-      const PAYU_SUCCESS_URL = `${process.env.FRONTEND_URL}/payment/success`;
-      const PAYU_FAILURE_URL = `${process.env.FRONTEND_URL}/payment/failure`;
-
-      const {
-        amount,
-        firstname,
-        email,
-        phone,
-        booking_id,
-        productinfo = `Booking ${booking_id}`
-      } = req.body;
-
-      // Validate payment gateway configuration
-      if (!PAYU_MERCHANT_KEY || !PAYU_MERCHANT_SALT) {
-        console.error('Payment gateway configuration missing');
-        return res.status(500).json({
-          success: false,
-          error: 'Payment gateway configuration missing'
-        });
-      }
-
-      // Validate required fields
-      if (!amount || !firstname || !email || !booking_id) {
-        return res.status(400).json({
-          success: false,
-          error: 'Missing required payment parameters'
-        });
-      }
-
-      // Validate amount
-      if (isNaN(amount) || amount <= 0) {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid amount'
-        });
-      }
-
-      // Validate phone number
-      const cleanPhone = phone ? phone.toString().replace(/\D/g, '') : '';
-      if (cleanPhone.length < 10) {
-        return res.status(400).json({
-          success: false,
-          error: 'Valid 10-digit phone number required'
-        });
-      }
-
-      // Verify booking exists
-      const [booking] = await pool.execute(
-        'SELECT id, total_amount FROM bookings WHERE id = ? AND payment_status = "pending"',
-        [booking_id]
-      );
-
-      if (booking.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: 'Pending booking not found'
-        });
-      }
-
-      // Generate transaction ID
-      const txnid = `PAYU-${uuidv4()}`;
-
-      // Prepare hash string
-      const hashString = [
-        PAYU_MERCHANT_KEY.trim(),
-        txnid.trim(),
-        String(amount).trim(),
-        (productinfo || '').substring(0, 100).trim(),
-        firstname.substring(0, 60).trim(),
-        email.substring(0, 50).trim(),
-        ...Array(10).fill(''), // udf1-udf10
-        PAYU_MERCHANT_SALT.trim()
-      ].join('|');
-
-      const hash = crypto.createHash('sha512').update(hashString).digest('hex');
-
-      const paymentData = {
-        key: PAYU_MERCHANT_KEY,
-        txnid,
-        amount: amount,
-        productinfo,
-        firstname,
-        email,
-        phone: cleanPhone.substring(0, 10),
-        surl: `${PAYU_SUCCESS_URL}?booking_id=${booking_id}`,
-        furl: `${PAYU_FAILURE_URL}?booking_id=${booking_id}`,
-        hash,
-        service_provider: 'payu_paisa',
-        udf1: booking_id.toString() // Critical for callback
-      };
-
-      // Update booking with transaction ID
-      await pool.execute(
-        'UPDATE bookings SET payment_txn_id = ? WHERE id = ?',
-        [txnid, booking_id]
-      );
-
-      res.json({
-        success: true,
-        payu_url: PAYU_BASE_URL,
-        payment_data: paymentData
-      });
-
-    } catch (error) {
-      console.error('Error initiating PayU payment:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to initiate payment',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  });
-
-// PAYU CALLBACK HANDLER
-router.post('/payments/callback', async (req, res) => {
+router.post('/payments/payu', async (req, res) => {
   try {
-    const { txnid, status, amount, hash, error_Message, udf1 } = req.body;
-    const bookingId = udf1;
+    const { amount, firstname, email, phone, booking_id, productinfo } = req.body;
 
-    // Validate required fields
-    if (!txnid || !status || !hash || !bookingId) {
-      console.error('Invalid callback data:', req.body);
-      return res.status(400).send('Invalid callback data');
+    if (!amount || !firstname || !email || !booking_id || !productinfo) {
+      return res.status(400).json({ success: false, error: 'Missing required payment parameters' });
     }
 
-    // Verify hash
-    const hashString = [
-      process.env.PAYU_MERCHANT_KEY,
-      txnid,
-      amount,
-      req.body.productinfo || '',
-      req.body.firstname || '',
-      req.body.email || '',
-      ...Array(10).fill(''), // udf2-udf10
-      process.env.PAYU_MERCHANT_SALT
-    ].join('|');
-    
-    const computedHash = crypto.createHash('sha512').update(hashString).digest('hex');
-    
-    if (computedHash !== hash) {
-      console.error('Hash verification failed');
-      return res.status(400).send('Invalid hash');
+    if (isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ success: false, error: 'Invalid amount' });
     }
 
-    // Find booking
+    const cleanPhone = phone ? phone.toString().replace(/\D/g, '') : '';
+    if (cleanPhone.length < 10) {
+      return res.status(400).json({ success: false, error: 'Valid 10-digit phone required' });
+    }
+
     const [booking] = await pool.execute(
-      'SELECT id, total_amount, advance_amount FROM bookings WHERE id = ?',
-      [bookingId]
+      'SELECT id FROM bookings WHERE id = ? AND payment_status = "pending"', [booking_id]
     );
-
     if (booking.length === 0) {
-      console.error('Booking not found for callback:', bookingId);
-      return res.status(404).send('Booking not found');
+      return res.status(404).json({ success: false, error: 'Pending booking not found' });
     }
 
-    const bookingData = booking[0];
-    let paymentStatus;
+    const txnid = `PAYU-${uuidv4()}`;
+    const udf1 = '', udf2 = '', udf3 = '', udf4 = '', udf5 = '';
+    const truncatedProductinfo = productinfo.substring(0, 100);
+    const truncatedFirstname = firstname.substring(0, 60);
+    const truncatedEmail = email.substring(0, 50);
 
-    // Handle payment success
-    if (status === 'success') {
-      paymentStatus = parseFloat(amount) >= parseFloat(bookingData.total_amount)
-        ? 'success'
-        : 'partial';
-        
-      await pool.execute(
-        `UPDATE bookings SET 
-          payment_status = ?,
-          payment_txn_id = ?,
-          advance_amount = ?
-         WHERE id = ?`,
-        [paymentStatus, txnid, amount, bookingId]
-      );
-      
-      res.redirect(`${process.env.FRONTEND_URL}/payment/success?booking_id=${bookingId}`);
-    } 
-    // Handle payment failure
-    else {
-      paymentStatus = 'failed';
-      
-      await pool.execute(
-        `UPDATE bookings SET 
-          payment_status = ?,
-          payment_error = ?
-         WHERE id = ?`,
-        [paymentStatus, error_Message || 'Payment failed', bookingId]
-      );
-      
-      res.redirect(`${process.env.FRONTEND_URL}/payment/failure?booking_id=${bookingId}&error=${encodeURIComponent(error_Message || 'Payment failed')}`);
-    }
-
-  } catch (error) {
-    console.error('Payment callback error:', error);
-    res.status(500).send('Payment processing failed');
-  }
-});
-
-// PAYMENT VERIFICATION ENDPOINT
-router.get('/:id/verify', async (req, res) => {
-  try {
-    const [booking] = await pool.execute(
-      `SELECT payment_status 
-       FROM bookings WHERE id = ?`,
-      [req.params.id]
-    );
-    
-    if (booking.length === 0) {
-      return res.status(404).json({ 
-        success: false,
-        error: 'Booking not found' 
-      });
-    }
-
-    res.json({
-      success: true,
-      verified: ['partial', 'success'].includes(booking[0].payment_status)
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      success: false,
-      error: 'Verification failed' 
-    });
-  }
-});
-
-// PAYMENT RETRY ENDPOINT
-router.get('/:id/retry-payment', async (req, res) => {
-  try {
-    const [booking] = await pool.execute(
-      `SELECT id, advance_amount, guest_name, guest_email, guest_phone 
-       FROM bookings 
-       WHERE id = ? 
-         AND payment_status IN ('failed', 'expired')`,
-      [req.params.id]
-    );
-    
-    if (booking.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Booking not eligible for retry'
-      });
-    }
-
-    const bookingData = booking[0];
-    const productinfo = `Retry payment for booking ${bookingData.id}`;
-
-    // Generate new transaction ID
-    const txnid = `PAYU-RETRY-${uuidv4()}`;
-
-    // Prepare hash
-    const hashString = [
-      process.env.PAYU_MERCHANT_KEY,
-      txnid,
-      String(bookingData.advance_amount),
-      productinfo.substring(0, 100),
-      bookingData.guest_name.substring(0, 60),
-      bookingData.guest_email.substring(0, 50),
-      ...Array(10).fill(''),
-      process.env.PAYU_MERCHANT_SALT
-    ].join('|');
-
+    const hashString = `${payu_key}|${txnid}|${amount}|${truncatedProductinfo}|${truncatedFirstname}|${truncatedEmail}|${udf1}|${udf2}|${udf3}|${udf4}|${udf5}||||||${payu_salt}`;
     const hash = crypto.createHash('sha512').update(hashString).digest('hex');
 
-    const paymentData = {
-      key: process.env.PAYU_MERCHANT_KEY,
-      txnid,
-      amount: String(bookingData.advance_amount),
-      productinfo,
-      firstname: bookingData.guest_name,
-      email: bookingData.guest_email,
-      phone: bookingData.guest_phone ? bookingData.guest_phone.replace(/\D/g, '').substring(0, 10) : '',
-      surl: `${process.env.PAYU_SUCCESS_URL}?booking_id=${bookingData.id}`,
-      furl: `${process.env.PAYU_FAILURE_URL}?booking_id=${bookingData.id}`,
-      hash,
-      service_provider: 'payu_paisa',
-      udf1: bookingData.id.toString()
-    };
+    await pool.execute('UPDATE bookings SET payment_txn_id = ?, payment_status = "pending" WHERE id = ?', [txnid, booking_id]);
 
-    // Update booking with new transaction ID
-    await pool.execute(
-      'UPDATE bookings SET payment_txn_id = ? WHERE id = ?',
-      [txnid, bookingData.id]
-    );
+    const paymentData = {
+      key: payu_key,
+      txnid,
+      amount,
+      productinfo: truncatedProductinfo,
+      firstname: truncatedFirstname,
+      email: truncatedEmail,
+      phone: cleanPhone.substring(0, 10),
+      surl: `https://a.plumeriaretreat.com/admin/bookings/verify/${txnid}`,
+      furl: `https://a.plumeriaretreat.com/bookings/verify/${txnid}`,
+      hash,
+      currency: "INR"
+    };
 
     res.json({
       success: true,
-      payu_url: process.env.PAYU_BASE_URL,
+      message: "Payment initiated",
+      payu_url: `${PAYU_BASE_URL}/_payment`,
       payment_data: paymentData
     });
 
   } catch (error) {
-    console.error('Payment retry error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to prepare payment retry'
-    });
+    console.error('PayU initiation error:', error);
+    res.status(500).json({ success: false, error: 'Payment initiation failed' });
   }
 });
 
-// PUT /admin/bookings/:id/status - Update payment status (for manual updates)
+// POST /admin/bookings/verify/:txnid - PayU verification callback + redirect
+router.post('/verify/:txnid', async (req, res) => {
+  const { txnid } = req.params;
+  if (!txnid) {
+    return res.status(400).send("Transaction ID missing");
+  }
+
+  try {
+    const PayU = require("payu-websdk");
+    const payuClient = new PayU({ key: payu_key, salt: payu_salt });
+
+    console.log(`Verifying payment for txnid: ${txnid}`);
+
+    const verifiedData = await payuClient.verifyPayment(txnid);
+    const transaction = verifiedData.transaction_details[txnid];
+
+    console.log('Payment verification response:', transaction);
+
+    if (!transaction) {
+      return res.status(404).send("Transaction details not found");
+    }
+
+    if (transaction.status === "success") {
+      await pool.execute('UPDATE bookings SET payment_status = "success" WHERE payment_txn_id = ?', [txnid]);
+    } else {
+      await pool.execute('UPDATE bookings SET payment_status = "failed" WHERE payment_txn_id = ?', [txnid]);
+    }
+
+    return res.redirect(`https://plumeriaretreat.vercel.app/payment/${transaction.status}/${transaction.txnid}`);
+
+  } catch (error) {
+    console.error('Payment verification error:', error);
+    return res.status(500).send("Internal server error during payment verification");
+  }
+});
+
+// PUT /admin/bookings/:id/status - Manually update payment status
 router.put('/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
-    const { payment_status, payment_txn_id } = req.body;
+    const { payment_status } = req.body;
 
-    if (!payment_status || !['success', 'failed', 'pending', 'partial', 'expired'].includes(payment_status)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Valid payment status is required'
-      });
+    if (!payment_status) {
+      return res.status(400).json({ success: false, error: 'Payment status is required' });
     }
 
-    const [result] = await pool.execute(
-      'UPDATE bookings SET payment_status = ?, payment_txn_id = ? WHERE id = ?',
-      [payment_status, payment_txn_id || null, id]
-    );
+    const validStatuses = ['pending', 'success', 'failed', 'expired'];
+    if (!validStatuses.includes(payment_status)) {
+      return res.status(400).json({ success: false, error: 'Invalid payment status' });
+    }
+
+    const [result] = await pool.execute('UPDATE bookings SET payment_status = ? WHERE id = ?', [payment_status, id]);
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Booking not found'
-      });
+      return res.status(404).json({ success: false, error: 'Booking not found' });
     }
 
-    res.json({
-      success: true,
-      message: 'Payment status updated successfully'
-    });
+    res.json({ success: true, message: 'Payment status updated' });
 
   } catch (error) {
     console.error('Error updating payment status:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update payment status'
-    });
+    res.status(500).json({ success: false, error: 'Failed to update payment status' });
   }
 });
 

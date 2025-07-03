@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../dbcon'); // Use the pool connection
 const db = pool;
 
+
 // Get all coupons with optional search
 router.get('/', async (req, res) => {
   try {
@@ -90,7 +91,7 @@ router.post('/', async (req, res) => {
       expiryDate,
       accommodationType
     } = req.body;
-
+    console.log('Creating coupon with data:', req.body);
     // Validation
     if (!code || !discount || !discountType || !expiryDate) {
       return res.status(400).json({
@@ -189,6 +190,7 @@ router.put('/:id', async (req, res) => {
       accommodationType
     } = req.body;
 
+    console.log('Updating coupon with ID:', id, 'and data:', req.body);
     // Check if coupon exists
     const [existingCoupon] = await db.execute('SELECT * FROM coupons WHERE id = ?', [id]);
     if (existingCoupon.length === 0) {

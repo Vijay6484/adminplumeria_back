@@ -12,7 +12,7 @@ const pool = require('./dbcon');
 dotenv.config();
 const app = express();
 const port = process.env.PORT || 5000;
-
+app.use(express.urlencoded({ extended: true }));
 // Setup logging
 const accessLogStream = fs.createWriteStream(
   path.join(__dirname, 'access.log'), 

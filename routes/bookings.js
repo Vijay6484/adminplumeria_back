@@ -224,14 +224,22 @@ router.get('/verify/:txnid', async (req, res) => {
 
     console.log(`Verifying payment for txnid: ${txnid}`);
 
-    const verifiedData = await payuClient.verifyPayment(txnid);
-    const transaction = verifiedData.transaction_details[txnid];
+    let verifiedData;
+    try {
+      verifiedData = await payuClient.verifyPayment(txnid);
+      console.log('Full payment verification response:', verifiedData);
+    } catch (sdkError) {
+      console.error('Error during PayU SDK verifyPayment call:', sdkError);
+      return res.status(500).send("Failed to communicate with payment gateway");
+    }
 
-    console.log('Payment verification response:', transaction);
-
-    if (!transaction) {
+    if (!verifiedData || !verifiedData.transaction_details || !verifiedData.transaction_details[txnid]) {
+      console.error('Payment verification failed: Missing transaction details', verifiedData);
       return res.status(404).send("Transaction details not found");
     }
+
+    const transaction = verifiedData.transaction_details[txnid];
+    console.log('Payment verification response:', transaction);
 
     if (transaction.status === "success") {
       await pool.execute('UPDATE bookings SET payment_status = "success" WHERE payment_txn_id = ?', [txnid]);
@@ -246,6 +254,7 @@ router.get('/verify/:txnid', async (req, res) => {
     return res.status(500).send("Internal server error during payment verification");
   }
 });
+
 
 // PUT /admin/bookings/:id/status - Manually update payment status
 router.put('/:id/status', async (req, res) => {

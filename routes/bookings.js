@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../dbcon');
 const crypto = require('crypto');
+const PayU = require("payu-websdk");
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 const payu_key = process.env.PAYU_MERCHANT_KEY;
@@ -209,7 +210,146 @@ router.post('/payments/payu', async (req, res) => {
     res.status(500).json({ success: false, error: 'Payment initiation failed' });
   }
 });
+router.get('/payment-status/:txnid', async (req, res) => {
+  try {
+    const { txnid } = req.params;
+    const { force_payu } = req.query; // Add query parameter to force PayU check
+    
+    if (!txnid) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Transaction ID is required' 
+      });
+    }
 
+    // Get booking from database
+    const [bookings] = await pool.execute(
+      'SELECT id, payment_status, payment_txn_id, total_amount, advance_amount, created_at FROM bookings WHERE payment_txn_id = ?',
+      [txnid]
+    );
+
+    if (bookings.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Transaction not found' 
+      });
+    }
+
+    const booking = bookings[0];
+    
+    // If force_payu is true, OR status is failed/pending, check with PayU
+    const shouldCheckPayU = force_payu === 'true' || 
+                           booking.payment_status === 'failed' || 
+                           booking.payment_status === 'pending';
+
+    if (!shouldCheckPayU && booking.payment_status === 'success') {
+      return res.json({
+        success: true,
+        data: {
+          txnid,
+          status: booking.payment_status,
+          source: 'database',
+          booking_id: booking.id,
+          amount: booking.advance_amount || booking.total_amount,
+          message: 'Payment already confirmed as successful'
+        }
+      });
+    }
+
+    // Check with PayU
+    try {
+      const PayU = require("payu-websdk");
+      const payuClient = new PayU({ key: payu_key, salt: payu_salt });
+
+      console.log(`Force checking payment status for txnid: ${txnid}`);
+      
+      const verifiedData = await payuClient.verifyPayment(txnid);
+      
+      if (!verifiedData || !verifiedData.transaction_details || !verifiedData.transaction_details[txnid]) {
+        console.log('PayU verification returned no data for:', txnid);
+        
+        // If no data from PayU, but customer says payment debited, 
+        // return database status with warning
+        return res.json({
+          success: true,
+          data: {
+            txnid,
+            status: booking.payment_status,
+            source: 'database',
+            booking_id: booking.id,
+            amount: booking.advance_amount || booking.total_amount,
+            warning: 'PayU verification returned no data - check merchant dashboard manually',
+            payu_response: verifiedData
+          }
+        });
+      }
+
+      const transaction = verifiedData.transaction_details[txnid];
+      console.log('PayU transaction details:', transaction);
+      
+      // Determine final status
+      let finalStatus = 'pending';
+      if (transaction.status === 'success') {
+        finalStatus = 'success';
+      } else if (transaction.status === 'failure' || transaction.status === 'failed') {
+        finalStatus = 'failed';
+      }
+
+      // Update database if status changed
+      if (finalStatus !== booking.payment_status) {
+        await pool.execute(
+          'UPDATE bookings SET payment_status = ? WHERE payment_txn_id = ?',
+          [finalStatus, txnid]
+        );
+        
+        console.log(`Updated booking ${booking.id} status from ${booking.payment_status} to ${finalStatus}`);
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          txnid,
+          status: finalStatus,
+          source: 'payu',
+          booking_id: booking.id,
+          amount: transaction.amount || booking.advance_amount || booking.total_amount,
+          payment_id: transaction.mihpayid,
+          payment_mode: transaction.mode,
+          bank_ref_num: transaction.bank_ref_num,
+          payu_status: transaction.status,
+          status_updated: finalStatus !== booking.payment_status,
+          original_db_status: booking.payment_status
+        }
+      });
+
+    } catch (payuError) {
+      console.error('PayU verification error:', payuError);
+      
+      // Return database status with error info
+      return res.json({
+        success: true,
+        data: {
+          txnid,
+          status: booking.payment_status,
+          source: 'database',
+          booking_id: booking.id,
+          amount: booking.advance_amount || booking.total_amount,
+          error: 'PayU verification failed',
+          error_details: payuError.message,
+          recommendation: 'Check PayU merchant dashboard manually'
+        }
+      });
+    }
+
+  } catch (error) {
+    console.error('Error checking payment status:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check payment status',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
 // POST /admin/bookings/verify/:txnid - PayU verification callback + redirect
 router.get('/verify/:txnid', async (req, res) => {
   console.log('Payment verification request received');
@@ -254,8 +394,6 @@ router.get('/verify/:txnid', async (req, res) => {
     return res.status(500).send("Internal server error during payment verification");
   }
 });
-
-
 // PUT /admin/bookings/:id/status - Manually update payment status
 router.put('/:id/status', async (req, res) => {
   try {

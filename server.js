@@ -27,7 +27,8 @@ app.use(cors({
     'http://localhost:5173', 
     'https://adminplumeria.vercel.app',
     'https://plumeriaretreat.vercel.app',
-    'http://localhost:5174'
+    'http://localhost:5174',
+    'https://plumeriaretreat.com'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],

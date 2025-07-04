@@ -6,7 +6,7 @@ const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 const payu_key = process.env.PAYU_MERCHANT_KEY;
 const payu_salt = process.env.PAYU_MERCHANT_SALT;
-const PAYU_BASE_URL = process.env.PAYU_BASE_URL||'https://test.payu.in';//for production 'https://secure.payu.in'; // for testing 'https://test.payu.in';
+const PAYU_BASE_URL = process.env.PAYU_BASE_URL||'https://secure.payu.in';//for production 'https://secure.payu.in'; // for testing 'https://test.payu.in';
 const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL;
 const ADMIN_BASE_URL = process.env.ADMIN_BASE_URL;
 // BOOKING CLEANUP JOB

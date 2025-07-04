@@ -562,8 +562,8 @@ router.post('/payments/payu', async (req, res) => {
       firstname: truncatedFirstname,
       email: truncatedEmail,
       phone: cleanPhone.substring(0, 10),
-      surl: `http://localhost:5000/admin/bookings/verify/${txnid}`, // Production callback
-      furl: `http://localhost:5000/admin/bookings/verify/${txnid}`,    // Production failure URL
+      surl: `${ADMIN_BASE_URL}/admin/bookings/verify/${txnid}`, // Production callback
+      furl: `${ADMIN_BASE_URL}/admin/bookings/verify/${txnid}`,    // Production failure URL
       hash,
       currency: "INR"
     };

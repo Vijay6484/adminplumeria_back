@@ -288,11 +288,11 @@ require('dotenv').config();
 
 const payu_key = process.env.PAYU_MERCHANT_KEY;
 const payu_salt = process.env.PAYU_MERCHANT_SALT;
-const PAYU_BASE_URL = process.env.PAYU_BASE_URL || 'https://secure.payu.in'; // Production URL
-const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'https://plumeriaretreat.com';
-const ADMIN_BASE_URL = process.env.ADMIN_BASE_URL || 'https://admin.plumeriaretreat.com';
+const PAYU_BASE_URL = process.env.PAYU_BASE_URL;
+const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL;
+const ADMIN_BASE_URL = process.env.ADMIN_BASE_URL;
 
-// BOOKING CLEANUP JOB
+// --- BOOKING CLEANUP JOB ---
 const bookingCleanup = () => {
   setInterval(async () => {
     try {
@@ -312,13 +312,12 @@ const bookingCleanup = () => {
 };
 bookingCleanup();
 
-// GET /admin/bookings - fetch all bookings
+// --- GET /admin/bookings ---
 router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
-    
-    // Validate inputs
+
     if (isNaN(page) || isNaN(limit) || page < 1 || limit < 1 || limit > 100) {
       return res.status(400).json({
         success: false,
@@ -371,7 +370,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /admin/bookings - create booking
+// --- POST /admin/bookings ---
 router.post('/', async (req, res) => {
   const connection = await pool.getConnection();
   try {
@@ -383,10 +382,9 @@ router.post('/', async (req, res) => {
       advance_amount = 0, payment_method = 'payu'
     } = req.body;
 
-    // Enhanced validation
+    // Validation logic (should be moved to a middleware or validator)
     const requiredFields = ['guest_name', 'accommodation_id', 'package_id', 'check_in', 'check_out', 'total_amount'];
     const missingFields = requiredFields.filter(field => !req.body[field]);
-
     if (missingFields.length > 0) {
       return res.status(400).json({ 
         success: false, 
@@ -394,7 +392,6 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (guest_email && !emailRegex.test(guest_email)) {
       return res.status(400).json({ 
@@ -403,7 +400,6 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Validate phone number (if provided)
     if (guest_phone) {
       const phoneRegex = /^[0-9]{10}$/;
       const cleanPhone = guest_phone.toString().replace(/\D/g, '');
@@ -500,12 +496,11 @@ router.post('/', async (req, res) => {
   }
 });
 
-// POST /admin/bookings/payments/payu - Initiate PayU payment
+// --- POST /admin/bookings/payments/payu ---
 router.post('/payments/payu', async (req, res) => {
   try {
     const { amount, firstname, email, phone, booking_id, productinfo } = req.body;
 
-    // Enhanced validation
     if (!amount || !firstname || !email || !booking_id || !productinfo) {
       return res.status(400).json({ 
         success: false, 
@@ -532,7 +527,6 @@ router.post('/payments/payu', async (req, res) => {
       'SELECT id FROM bookings WHERE id = ? AND payment_status = "pending"', 
       [booking_id]
     );
-    
     if (booking.length === 0) {
       return res.status(404).json({ 
         success: false, 
@@ -545,9 +539,15 @@ router.post('/payments/payu', async (req, res) => {
     const truncatedProductinfo = productinfo.substring(0, 100);
     const truncatedFirstname = firstname.substring(0, 60);
     const truncatedEmail = email.substring(0, 50);
+    const amountFormatted = parseFloat(amount).toFixed(2);
 
-    const hashString = `${payu_key}|${txnid}|${amount}|${truncatedProductinfo}|${truncatedFirstname}|${truncatedEmail}|${udf1}|${udf2}|${udf3}|${udf4}|${udf5}||||||${payu_salt}`;
+    // Correct hash string for PayU
+    const hashString = `${payu_key}|${txnid}|${amountFormatted}|${truncatedProductinfo}|${truncatedFirstname}|${truncatedEmail}|${udf1}|${udf2}|${udf3}|${udf4}|${udf5}|||||${payu_salt}`;
     const hash = crypto.createHash('sha512').update(hashString).digest('hex');
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('PayU hashString:', hashString);
+    }
 
     await pool.execute(
       'UPDATE bookings SET payment_txn_id = ?, payment_status = "pending" WHERE id = ?', 
@@ -557,15 +557,16 @@ router.post('/payments/payu', async (req, res) => {
     const paymentData = {
       key: payu_key,
       txnid,
-      amount,
+      amount: amountFormatted,
       productinfo: truncatedProductinfo,
       firstname: truncatedFirstname,
       email: truncatedEmail,
       phone: cleanPhone.substring(0, 10),
-      surl: `${ADMIN_BASE_URL}/admin/bookings/verify/${txnid}`, // Production callback
-      furl: `${ADMIN_BASE_URL}/admin/bookings/verify/${txnid}`,    // Production failure URL
+      surl: `${ADMIN_BASE_URL}/admin/bookings/verify/${txnid}`,
+      furl: `${ADMIN_BASE_URL}/admin/bookings/verify/${txnid}`,
       hash,
-      currency: "INR"
+      currency: "INR",
+      service_provider: "payu_paisa"
     };
 
     res.json({
@@ -584,35 +585,42 @@ router.post('/payments/payu', async (req, res) => {
   }
 });
 
-// POST /admin/bookings/verify/:txnid - PayU verification callback
+// --- POST /admin/bookings/verify/:txnid ---
+// PayU sends POST data to this URL after payment
 router.post('/verify/:txnid', async (req, res) => {
-  console.log('Payment verification request received');
   const { txnid } = req.params;
-  
+  const payuResponse = req.body;
+
   if (!txnid) {
     return res.status(400).send("Transaction ID missing");
   }
 
+  // Verify PayU hash for security
+  const posted_hash = payuResponse.hash;
+  const status = payuResponse.status;
+  // Construct hash string as per PayU docs (reverse order for response hash)
+  const hashSeq = [
+    payu_salt,
+    status,
+    '', '', '', '', '', // udf10 to udf6
+    payuResponse.udf5 || '', payuResponse.udf4 || '', payuResponse.udf3 || '', payuResponse.udf2 || '', payuResponse.udf1 || '',
+    payuResponse.email || '',
+    payuResponse.firstname || '',
+    payuResponse.productinfo || '',
+    payuResponse.amount || '',
+    payuResponse.txnid || '',
+    payu_key
+  ];
+  const reverseHashString = hashSeq.join('|');
+  const calcHash = crypto.createHash('sha512').update(reverseHashString).digest('hex');
+
+  if (posted_hash !== calcHash) {
+    return res.status(400).send("Invalid hash");
+  }
+
+  // Update booking status based on PayU response
   try {
-    const PayU = require("payu-websdk");
-    const payuClient = new PayU({ 
-      key: payu_key, 
-      salt: payu_salt,
-      production: true // Enable production mode
-    });
-
-    console.log(`Verifying payment for txnid: ${txnid}`);
-
-    const verifiedData = await payuClient.verifyPayment(txnid);
-    console.log('Payment verification response:', verifiedData);
-    const transaction = verifiedData.transaction_details[txnid];
-
-    if (!transaction) {
-      return res.status(404).send("Transaction details not found");
-    }
-
-    // Update booking status based on PayU response
-    if (transaction.status === "success") {
+    if (status === "success") {
       await pool.execute(
         'UPDATE bookings SET payment_status = "success" WHERE payment_txn_id = ?', 
         [txnid]
@@ -626,16 +634,15 @@ router.post('/verify/:txnid', async (req, res) => {
 
     // Redirect to frontend with payment status
     return res.redirect(
-      `${FRONTEND_BASE_URL}/payment/${transaction.status}/${transaction.txnid}`
+      `${FRONTEND_BASE_URL}/payment/${status}/${txnid}`
     );
-
   } catch (error) {
     console.error('Payment verification error:', error);
     return res.status(500).send("Internal server error during payment verification");
   }
 });
 
-// PUT /admin/bookings/:id/status - Update payment status
+// --- PUT /admin/bookings/:id/status ---
 router.put('/:id/status', async (req, res) => {
   try {
     const { id } = req.params;

@@ -211,7 +211,7 @@ router.post('/payments/payu', async (req, res) => {
 });
 
 // POST /admin/bookings/verify/:txnid - PayU verification callback + redirect
-router.post('/verify/:txnid', async (req, res) => {
+router.get('/verify/:txnid', async (req, res) => {
   console.log('Payment verification request received');
   const { txnid } = req.params;
   if (!txnid) {

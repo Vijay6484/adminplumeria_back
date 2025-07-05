@@ -19,7 +19,6 @@ cron.schedule('0 2 * * *', async () => {
   }
 });
 
-
 // GET /admin/calendar/blocked-dates
 router.get('/blocked-dates', async (req, res) => {
   console.log('Fetching blocked dates');
@@ -30,6 +29,7 @@ router.get('/blocked-dates', async (req, res) => {
         bd.blocked_date, 
         bd.reason, 
         bd.accommodation_id, 
+        bd.rooms,  // Changed to rooms
         a.name AS accommodation_name,
         bd.adult_price,
         bd.child_price
@@ -49,13 +49,13 @@ router.get('/blocked-dates/id', async (req, res) => {
   console.log('Fetching blocked dates for accommodation_id:', accommodation_id);
 
   try {
-    // Base query
     let query = `
       SELECT 
         bd.id, 
         bd.blocked_date, 
         bd.reason, 
         bd.accommodation_id, 
+        bd.rooms,  // Changed to rooms
         a.name AS accommodation_name,
         bd.adult_price,
         bd.child_price
@@ -65,13 +65,11 @@ router.get('/blocked-dates/id', async (req, res) => {
 
     const params = [];
 
-    // Add filter if accommodation_id is passed
     if (accommodation_id) {
       query += ` WHERE bd.accommodation_id = ?`;
       params.push(accommodation_id);
     }
 
-    // Final ordering
     query += ` ORDER BY bd.blocked_date DESC`;
 
     const [rows] = await pool.execute(query, params);
@@ -84,23 +82,33 @@ router.get('/blocked-dates/id', async (req, res) => {
   }
 });
 
-
-
 // POST /admin/calendar/blocked-dates
 router.post('/blocked-dates', async (req, res) => {
   try {
-    const { dates, reason, accommodation_id, adult_price, child_price } = req.body;
-    console.log('Blocking dates:', { dates, reason, accommodation_id, adult_price, child_price });
+    const { dates, reason, accommodation_id, room_number, adult_price, child_price } = req.body;
+    
+    console.log('Blocking dates:', { 
+      dates, 
+      reason, 
+      accommodation_id, 
+      room_number,
+      adult_price, 
+      child_price 
+    });
+    
     if (!dates || !Array.isArray(dates) || dates.length === 0) {
       return res.status(400).json({ success: false, message: 'No dates provided' });
     }
+    
     for (const date of dates) {
       await pool.execute(
-        `INSERT INTO blocked_dates (blocked_date, reason, accommodation_id, adult_price, child_price)
-         VALUES (?, ?, ?, ?, ?)`,
-        [date, reason, accommodation_id, adult_price, child_price]
+        // Changed room_number to rooms in query
+        `INSERT INTO blocked_dates (blocked_date, reason, accommodation_id, rooms, adult_price, child_price)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [date, reason, accommodation_id, room_number, adult_price, child_price]
       );
     }
+    
     res.json({ success: true });
   } catch (error) {
     console.error('Error blocking dates:', error);
@@ -112,17 +120,23 @@ router.post('/blocked-dates', async (req, res) => {
 router.put('/blocked-dates/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { reason, accommodation_id, adult_price, child_price } = req.body;
+    const { reason, accommodation_id, room_number, adult_price, child_price } = req.body;
+    
     await pool.execute(
-      `UPDATE blocked_dates SET reason=?, accommodation_id=?, adult_price=?, child_price=? WHERE id=?`,
-      [reason, accommodation_id, adult_price, child_price, id]
+      // Changed room_number to rooms in query
+      `UPDATE blocked_dates 
+       SET reason=?, accommodation_id=?, rooms=?, adult_price=?, child_price=?
+       WHERE id=?`,
+      [reason, accommodation_id, room_number, adult_price, child_price, id]
     );
+    
     res.json({ success: true });
   } catch (error) {
     console.error('Error updating blocked date:', error);
     res.status(500).json({ success: false, message: 'Failed to update blocked date' });
   }
 });
+
 router.delete('/blocked-dates/cleanup', async (req, res) => {
   try {
     const today = new Date();

@@ -29,7 +29,7 @@ router.get('/blocked-dates', async (req, res) => {
         bd.blocked_date, 
         bd.reason, 
         bd.accommodation_id, 
-        bd.rooms,  // Changed to rooms
+        bd.rooms,
         a.name AS accommodation_name,
         bd.adult_price,
         bd.child_price
@@ -47,40 +47,34 @@ router.get('/blocked-dates', async (req, res) => {
 router.get('/blocked-dates/id', async (req, res) => {
   const { accommodation_id } = req.query;
   console.log('Fetching blocked dates for accommodation_id:', accommodation_id);
-
   try {
     let query = `
-      SELECT 
-        bd.id, 
-        bd.blocked_date, 
-        bd.reason, 
-        bd.accommodation_id, 
-        bd.rooms,  // Changed to rooms
+      SELECT
+        bd.id,
+        bd.blocked_date,
+        bd.reason,
+        bd.accommodation_id,
+        bd.rooms,
         a.name AS accommodation_name,
         bd.adult_price,
         bd.child_price
       FROM blocked_dates bd
       LEFT JOIN accommodations a ON bd.accommodation_id = a.id
     `;
-
     const params = [];
-
     if (accommodation_id) {
       query += ` WHERE bd.accommodation_id = ?`;
       params.push(accommodation_id);
     }
-
     query += ` ORDER BY bd.blocked_date DESC`;
-
     const [rows] = await pool.execute(query, params);
-
     res.json({ success: true, data: rows });
-
   } catch (error) {
     console.error('Error fetching blocked dates:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch blocked dates' });
   }
 });
+
 
 // POST /admin/calendar/blocked-dates
 router.post('/blocked-dates', async (req, res) => {
@@ -105,7 +99,7 @@ router.post('/blocked-dates', async (req, res) => {
         // Changed room_number to rooms in query
         `INSERT INTO blocked_dates (blocked_date, reason, accommodation_id, rooms, adult_price, child_price)
          VALUES (?, ?, ?, ?, ?, ?)`,
-        [date, reason, accommodation_id, room_number, adult_price, child_price]
+        [date, reason, accommodation_id, String(room_number), adult_price, child_price]
       );
     }
     

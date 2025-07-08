@@ -433,6 +433,7 @@ const crypto = require('crypto');
 const PayU = require("payu-websdk");
 const nodemailer = require('nodemailer');
 const puppeteer = require('puppeteer');
+const { format } = require('date-fns');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
@@ -767,56 +768,588 @@ router.post('/payments/payu', async (req, res) => {
 // });
 
 // POST /verify/:txnid - Handle PayU callback (UPDATED)
-async function sendPdfEmail(email) {
+async function sendPdfEmail(email, name, BookingId, BookingDate, CheckoutDate, totalPrice, advancePayable, remainingAmount,
+  mobile, totalPerson, adult, child, vegCount, nonvegCount, joinCount) {
+
   console.log('Sending PDF email to:', email);
-  const browser = await puppeteer.launch({
-    headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
-  const page = await browser.newPage();
 
-  const html = `
-    <html>
-      <body>
-        <h1>Hello from Puppeteer</h1>
-        <p>This PDF was generated using modern libraries.</p>
-      </body>
-    </html>
-  `;
+  if (!email || typeof email !== 'string' || !email.includes('@')) {
+    console.error('❌ Invalid or missing email, aborting mail send:', email);
+    return;
+  }
 
-  await page.setContent(html, { waitUntil: 'networkidle0' });
-  const pdfBuffer = await page.pdf({ format: 'A4' });
-  await browser.close();
+  const html = `<!DOCTYPE html
+  PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml"
+  xmlns:o="urn:schemas-microsoft-com:office:office">
 
-  // Nodemailer setup
+<head>
+  <meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="format-detection" content="date=no" />
+  <meta name="format-detection" content="address=no" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="x-apple-disable-message-reformatting" />
+  <link href="https://fonts.googleapis.com/css?family=Lato:400,400i,700,700i" rel="stylesheet" />
+  <title>Booking</title>
+  <link rel="shortcut icon" href="images/favicon.png">
+
+
+  <style type="text/css" media="screen">
+    body {
+      padding: 0 !important;
+      margin: 0 !important;
+      display: block !important;
+      min-width: 100% !important;
+      width: 100% !important;
+      background: #ffffff;
+      -webkit-text-size-adjust: none
+    }
+
+    a {
+      color: #000001;
+      text-decoration: none
+    }
+
+    p {
+      margin: 0 !important;
+    }
+
+    img {
+      -ms-interpolation-mode: bicubic;
+    }
+
+    .mcnPreviewText {
+      display: none !important;
+    }
+
+    .cke_editable,
+    .cke_editable a,
+    .cke_editable span,
+    .cke_editable a span {
+      color: #000001 !important;
+    }
+
+    @media only screen and (max-device-width: 480px),
+    only screen and (max-width: 480px) {
+      .mobile-shell {
+        width: 100% !important;
+        min-width: 100% !important;
+        padding: 0 3px;
+      }
+
+      .bg {
+        background-size: 100% auto !important;
+        -webkit-background-size: 100% auto !important;
+      }
+
+      .text-header,
+      .m-center {
+        text-align: center !important;
+      }
+
+      .center {
+        margin: 0 auto !important;
+      }
+
+      .container {
+        padding: 20px 10px !important
+      }
+
+      .td {
+        width: 100% !important;
+        min-width: 100% !important;
+      }
+
+      .m-td,
+      .m-hide {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        font-size: 0 !important;
+        line-height: 0 !important;
+        min-height: 0 !important;
+      }
+
+      .m-block {
+        display: block !important;
+      }
+
+      .column,
+      .column-dir,
+      .column-top,
+      .column-empty,
+      .column-empty2,
+      .column-dir-top {
+        float: left !important;
+        width: 100% !important;
+        display: block !important;
+      }
+
+      .column-empty {
+        padding-bottom: 30px !important;
+      }
+
+      .column-empty2 {
+        padding-bottom: 10px !important;
+      }
+
+      .content-spacing {
+        width: 15px !important;
+      }
+
+      @media (max-width:600px) {
+        .logoimg {
+          padding-top: 5px !important;
+        }
+
+        .logoimg img {
+          width: 130px !important;
+          height: 28px !important;
+        }
+
+        .mainhead {
+          font-size: 12px !important;
+        }
+
+        table th,
+        table td {
+          font-size: 7px !important;
+          line-height: 12px !important;
+          padding-bottom: 2px !important;
+        }
+
+        table.border-table th {
+          padding-top: 2px !important;
+        }
+
+        .paypd {
+          padding: 0px 2px !important;
+          font-size: 7px !important;
+          margin-bottom: 4px !important;
+        }
+
+        .p30-15 {
+          padding: 6px 0px 0 !important;
+        }
+
+        .socialimgs td,
+        .socialimgs td img {
+          width: 24px !important;
+          height: 24px !important;
+          padding: 0 1px;
+        }
+
+        .footertd {
+          padding: 12px 0 !;
+        }
+
+        .bordr {
+          border-top-width: 2px !important;
+        }
+
+        .mobheadpb {
+          padding-bottom: 8px !important;
+        }
+      }
+    }
+  </style>
+</head>
+
+<body class="body"
+  style="padding:0 !important; margin:0 !important; display:block !important; min-width:100% !important; width:100% !important; background:#ffffff; -webkit-text-size-adjust:none;">
+  <span class="mcnPreviewText"
+    style="display:none; font-size:0px; line-height:0px; max-height:0px; max-width:0px; opacity:0; overflow:hidden; visibility:hidden; mso-hide:all;"></span>
+
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#f4f4f4">
+    <tr>
+      <td align="center" valign="top">
+        <div mc:repeatable="Select" mc:variant="Hero Image">
+          <table width="100%" border="0" cellspacing="0" cellpadding="0">
+            <tr>
+              <td class="m-td" valign="top" style="font-size:0pt; line-height:0pt; text-align:left;">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#f4f4f4" class="border"
+                  style="font-size:0pt; line-height:0pt; text-align:center; width:100%; min-width:100%;">
+                  <tr>
+                    <td bgcolor="#f4f4f4" height="auto" class="border"
+                      style="font-size:0pt; line-height:0pt; text-align:center; width:100%; min-width:100%;">&nbsp;</td>
+                  </tr>
+                </table>
+              </td>
+              <td valign="center" align="center" class="bordr mobile-shell" width="675" bgcolor="#ffffff"
+                style="border-bottom: 3px solid #216896;">
+                <table width="675" border="0" cellspacing="0" cellpadding="0" class="mobile-shell">
+                  <tr>
+                    <td class="td"
+                      style="padding-top: 60px; width:675px; min-width:675px; font-size:0pt; line-height:0pt; padding:0; margin:0; font-weight:normal;">
+                      <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                        <tr>
+                          <td class="p30-15" style="padding: 12px;">
+                            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                              <tr>
+                                <td class="h2 pb25 mainhead"
+                                  style="color:#444444; font-family:Lato, Arial ,sans-serif; font-size:22px; font-weight:bold; line-height:24px;padding-bottom:8px;">
+                                  <div mc:edit="text_2">Plumeria Retreat Pawna lake AC cottage </div>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td class="pb25"
+                                  style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:15px; padding-bottom:8px;width:100%;padding-right: 6px;">
+                                  <div mc:edit="text_3">Booking ID - <b>${BookingId}</b></div>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td class="pb25"
+                                  style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:14px; line-height:15px; padding-bottom:0;width:100%;padding-right: 5px;">
+                                  <div mc:edit="text_3">Booking Date - <span>${BookingDate}</span></div>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                          <td class="fluid-img logoimg"
+                            style="font-size:0pt; line-height:0pt; text-align:right;background:#ffffff;padding-right: 6px;">
+                            <img src="https://www.pawanaicamping.com/uploads/system/logo_new_color.png" width="auto"
+                              height="55" mc:edit="image_2" style="max-height:55px;" border="0" alt="Logo" />
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td class="m-td" valign="top" style="font-size:0pt; line-height:0pt; text-align:left;">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#f4f4f4" class="border"
+                  style="font-size:0pt; line-height:0pt; text-align:center; width:100%; min-width:100%;">
+                  <tr>
+                    <td bgcolor="#f4f4f4" height="auto" class="border"
+                      style="font-size:0pt; line-height:0pt; text-align:center; width:100%; min-width:100%;">&nbsp;</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </div>
+
+
+        <div mc:repeatable="Select" mc:variant="Intro">
+          <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#f4f4f4">
+            <tr>
+              <td class="m-td" valign="top" style="font-size:0pt; line-height:0pt; text-align:left;">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#ffffff" class="border"
+                  style="font-size:0pt; line-height:0pt; text-align:center; width:100%; min-width:100%;">
+                  <tr>
+                    <td bgcolor="#f4f4f4" height="150" class="border"
+                      style="font-size:0pt; line-height:0pt; text-align:center; width:100%; min-width:100%;">&nbsp;</td>
+                  </tr>
+                </table>
+              </td>
+              <td valign="top" align="center" class="mobile-shell p0-15" width="675" bgcolor="#ffffff">
+                <table width="675" border="0" cellspacing="0" cellpadding="0" class="mobile-shell">
+                  <tr>
+                    <td class="td"
+                      style="width:675px; min-width:675px; font-size:0pt; line-height:0pt; padding:0; margin:0; font-weight:normal;">
+                      <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                        <tr>
+                          <td class="bbrr" bgcolor="#ffffff" style="border-radius:0px 0px 12px 12px;">
+                            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                              <tr>
+                                <td class="p30-15" style="padding: 12px;">
+
+                                  <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                    <tr>
+                                      <td class="pb25"
+                                        style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px; padding-bottom:8px;width:50%;">
+                                        <div mc:edit="text_3"><b>Dear <span>${name}</span>,</b></div>
+                                      </td>
+                                    </tr>
+                                    <tr>
+                                      <td class="pb25"
+                                        style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px; padding-bottom:8px;width:50%;">
+                                        <div mc:edit="text_3"><span>Plumeria Retreat Pawna lake AC cottage </span> has
+                                          received a request for booking of
+                                          your Camping as per the details below. The primary guest <span>Vijay</span>
+                                          will be
+                                          carrying a copy of this e-voucher. </div>
+                                      </td>
+                                    </tr>
+                                    <tr>
+                                      <td class="pb25"
+                                        style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px; padding-bottom:8px;width:50%;">
+                                        <div mc:edit="text_3">For your reference, Booking ID is
+                                          <span><b>${BookingId}</b></span>.</div>
+                                      </td>
+                                    </tr>
+                                    <tr>
+                                      <td class="pb25"
+                                        style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px; padding-bottom:8px;width:50%;">
+                                        <div mc:edit="text_3"><b>The amount payable to <span>Plumeria Retreat Pawna lake
+                                              AC cottage </span> for this booking
+                                            is <span>INR ${advancePayable}</span> as per the details below. Please email us at
+                                            <a href="mailto: booking@pawanaicamping.com"
+                                              style="color: #216896;">booking@pawanaicamping.com</a> if there is any
+                                            discrepancy in this payment
+                                            amount.</b></div>
+                                      </td>
+                                    </tr>
+                                    <tr>
+                                      <td class="pb25"
+                                        style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px; padding-bottom:8px;width:100%;">
+                                        <div mc:edit="text_3">Kindly consider this e-voucher for booking confirmation
+                                          with the
+                                          following inclusions and services. </div>
+                                      </td>
+                                    </tr>
+                                  </table>
+
+                                  <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                    <tr>
+                                      <td class="pb25"
+                                        style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px; padding-bottom:8px;width:100%;">
+                                        <div mc:edit="text_3"><b>Team <span>Plumeria Retreat Pawna lake AC cottage
+                                            </span></b></div>
+                                      </td>
+                                    </tr>
+                                    <tr>
+                                      <td class="pb25"
+                                        style="color:#878887; font-family:Lato, Arial,sans-serif; font-size:14px; line-height:22px; padding-bottom:8px;width:100%;text-align:right;">
+                                        <div mc:edit="text_3">All prices indicated below are in INR</div>
+                                      </td>
+                                    </tr>
+                                  </table>
+
+                                  <table class="border-table" width="100%"
+                                    style="font-family: arial, sans-serif;border-collapse: collapse;width: 100%; margin-bottom: 10px;"
+                                    cellspacing="0" cellpadding="0">
+                                    <tr>
+                                      <th class="bordr"
+                                        style="border: 1px solid #dddddd;border-top: 3px solid #216896;text-align: left;padding: 9px 7px 10px;color: #878887;font-family: Lato, Arial,sans-serif;font-size: 13.5px;line-height: 16px;">
+                                        BOOKING DETAILS</th>
+                                      <th class="bordr"
+                                        style="border: 1px solid #dddddd;border-top: 3px solid #216896;text-align: left;padding: 9px 7px 10px;color: #878887;font-family: Lato, Arial,sans-serif;font-size: 13.5px;line-height: 16px;">
+                                        PAYMENT BREAKUP</th>
+                                    </tr>
+                                    <tr>
+                                      <td valign="top"
+                                        style="border: 1px solid #dddddd;text-align: left;padding: 6px 7px 8px;color: #000000;font-family: Lato, Arial,sans-serif;font-size: 13px;line-height: 15px;">
+                                        <p style="padding-bottom: 5px;margin: 0px;">Mobile: <b>${mobile}</b></p>
+                                        <p style="padding-bottom: 5px;margin: 0px;">Check In: <b>${BookingDate}</b></p>
+                                        <p style="padding-bottom: 5px;margin: 0px;">Check Out: <b>${CheckoutDate}</b></p>
+                                        <p style="padding-bottom: 5px;margin: 0px;">Total Person: <b>${totalPerson}</b></p>
+                                        <p style="padding-bottom: 5px;margin: 0px;">Adult: <b>${adult}</b></p>
+                                        <p style="padding-bottom: 5px;margin: 0px;">Child: <b>${child}</b></p>
+                                        <p style="padding-bottom: 5px;margin: 0px;">Veg Count: <b>${vegCount}</b></p>
+                                        <p style="padding-bottom: 5px;margin: 0px;">Non Veg Count: <b>${nonvegCount}</b></p>
+                                        <p style="padding-bottom: 5px;margin: 0px;">Jain Count: <b>${joinCount}</b></p>
+                                      </td>
+                                      <td
+                                        style="border: 1px solid #dddddd;text-align: left;padding: 6px 7px 8px;color: #000000;font-family: Lato, Arial,sans-serif;font-size: 14px;line-height: 16px;">
+                                        <table style="width: 100%;">
+                                          <tr>
+                                            <td valign="top" style="width: 100%;padding-right: 8px;">
+                                              <p style="padding-top: 5px;padding-bottom: 10px;margin: 0px;">
+                                                <b>TARRIF</b></p>
+                                              <p style="padding-bottom: 10px;margin: 0px;">Total Amount: <b
+                                                  style="float:right;">${totalPrice}</b></p>
+                                              <p style="padding-bottom: 10px;margin: 0px;">Advance Amount: <b
+                                                  style="float:right;">${advancePayable}</b></p>
+                                              <p style="padding-bottom: 10px;margin: 0px;">Remaining Amount: <b
+                                                  style="float:right;">${remainingAmount}</b></p>
+                                            </td>
+                                          </tr>
+                                        </table>
+                                      </td>
+                                    </tr>
+                                  </table>
+
+                                  <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                    <tr>
+                                      <td class="pb25 mobheadpb"
+                                        style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px; padding-bottom:24px;">
+                                        <div mc:edit="text_3"><b>Booking Cancellation Policy:</b> From ${BookingDate},100%
+                                          penalty will be
+                                          charged. In case of no show : no refund.Booking cannot be
+                                          cancelled/modified on or after the booking date and time mentioned in
+                                          the Camping Confirmation Voucher. All time mentioned above is in
+                                          destination time.</div>
+                                      </td>
+                                    </tr>
+                                    <tr>
+                                      <td class="pb25 bordr"
+                                        style="color:#216896;border-bottom: 3px solid #216896; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px; padding-bottom:6px;">
+                                        <div mc:edit="text_3"><b>Note</b></div>
+                                      </td>
+                                    </tr>
+                                    <tr>
+                                      <td class="pb25"
+                                        style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px; padding-bottom:8px;padding-top:8px;">
+                                        <div mc:edit="text_3">If your contact details have changed, please notify us so
+                                          that the
+                                          same can be updated in our records.</div>
+                                      </td>
+                                    </tr>
+                                    <tr>
+                                      <td class="pb25 mobheadpb"
+                                        style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px; padding-bottom:24px;">
+                                        <div mc:edit="text_3">If the booking is cancelled or changed by guest at a later
+                                          stage,
+                                          you will be notified and this confirmation email & Plumeria Retreat Pawna lake
+                                          AC cottage Booking ID will be null and void.</div>
+                                      </td>
+                                    </tr>
+                                  </table>
+
+                                  <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                    <tr>
+                                      <td>
+                                        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                          <tr>
+                                            <td class="pb25 bordr"
+                                              style="color:#216896;border-bottom: 3px solid #216896; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px; padding-bottom:6px;">
+                                              <div mc:edit="text_3"><b>Plumeria Retreat Pawna lake AC cottage Contact
+                                                  Info</b></div>
+                                            </td>
+                                          </tr>
+                                        </table>
+                                      </td>
+                                    </tr>
+                                  </table>
+                                  <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                    <tr>
+                                      <td style="padding-top:8px;padding-bottom:8px;width:50%;">
+                                        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                          <tr>
+                                            <td class="pb25"
+                                              style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px;">
+                                              <div mc:edit="text_3"><b>Plumeria Retreat Pawna lake AC cottage </b></div>
+                                            </td>
+                                          </tr>
+                                          <tr>
+                                            <td class="pb25"
+                                              style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px;">
+                                              <div mc:edit="text_3">At- <span>At- Bramhanoli , phangane, pawna lake,
+                                                  lonavala </span></div>
+                                            </td>
+                                          </tr>
+                                          <tr>
+                                            <td class="pb25"
+                                              style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px;">
+                                              <div mc:edit="text_3"><span>pawna lake</span></div>
+                                            </td>
+                                          </tr>
+                                          <!--<tr>
+																										<td class="pb25" style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px;">
+																											<div mc:edit="text_3"><span>Maharashtra</span>, <span>India</span></div>
+																										</td>
+																									</tr>-->
+                                          <tr>
+                                            <td class="pb25"
+                                              style="color:#216896; font-family:Lato, Arial,sans-serif; font-size:14px; line-height:22px;">
+                                              <div mc:edit="text_3">
+                                                <a href="http://maps.google.com/maps?q=18.6641847,73.4951777"
+                                                  style="color: #216896;">Google Maps Link</a>
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        </table>
+                                      </td>
+                                      <td style="padding-top:8px;padding-bottom:8px;width:50%;">
+                                        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                          <tr>
+                                            <td class="pb25"
+                                              style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:14px; line-height:22px;">
+                                              <div mc:edit="text_3">
+                                                <span><b>Email- </b></span><span><a
+                                                    href="mailto: booking@pawanaicamping.com"
+                                                    style="color: #164e6f;"><b>booking@pawanaicamping.com</b></a></span>
+                                              </div>
+                                            </td>
+                                          </tr>
+                                          <tr>
+                                            <td class="pb25"
+                                              style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:14px; line-height:22px;">
+                                              <div mc:edit="text_3">
+                                                <span><b>Contact Number- </b></span>
+                                                <span>Babu</span>- <span>9923366051</span>
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        </table>
+                                      </td>
+                                    </tr>
+                                  </table>
+
+
+
+                                  <table width="100%" border="0" cellspacing="0" cellpadding="0"
+                                    style="padding-top: 10px;border-top:1px solid #dddddd;">
+                                    <tr>
+                                      <td class="pb25"
+                                        style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px; padding-bottom:8px;">
+                                        <div mc:edit="text_3"><b>Note</b> - Please do not reply to this email. It has
+                                          been sent from an
+                                          email account that is not monitored. To ensure that you receive
+                                          communication related to your booking from Plumeria Retreat Pawna lake AC
+                                          cottage , please add <a href="mailto: babukale60@gmail.com"
+                                            style="color: #164e6f;"><b>babukale60@gmail.com</b></a> to your contact list
+                                          and
+                                          address book.</div>
+                                      </td>
+                                    </tr>
+                                  </table>
+
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td class="m-td" valign="top" style="font-size:0pt; line-height:0pt; text-align:left;">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#ffffff" class="border"
+                  style="font-size:0pt; line-height:0pt; text-align:left; width:100%; min-width:100%;">
+                  <tr>
+                    <td bgcolor="#f4f4f4" height="150" class="border"
+                      style="font-size:0pt; line-height:0pt; text-align:left; width:100%; min-width:100%;">&nbsp;</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </div>
+
+      </td>
+    </tr>
+  </table>
+</body>
+
+</html>` // your complete HTML content
+
   const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',//smtp,
+    host: 'smtp.gmail.com',
     secure: true,
     port: 465,
     auth: {
-      user: "chandan56348@gmail.com",   // set in Render dashboard
+      user: "chandan56348@gmail.com",
       pass: "mshnxdgdedgdacyy"
     }
   });
 
   const mailOptions = {
     from: "chandan56348@gmail.com",
-    to: email,
-    subject: 'PDF generated with Puppeteer',
-    text: 'Attached is a PDF created using Puppeteer.',
-    attachments: [
-      {
-        filename: 'modern-pdf.pdf',
-        content: pdfBuffer,
-        contentType: 'application/pdf'
-      }
-    ]
-
+    to: email.trim(),  // ensure no accidental space
+    subject: 'Resort Camping Booking',
+    html: html,
   };
+
   console.log('Mail options:', mailOptions);
+
   transporter.sendMail(mailOptions, (err, info) => {
-    if (err) return console.error('Mail send error:', err);
-    console.log('Email sent:', info.response);
+    if (err) return console.error('❌ Mail send error:', err);
+    console.log('✅ Email sent:', info.response);
   });
 }
 
@@ -824,53 +1357,95 @@ router.post('/verify/:txnid', async (req, res) => {
   console.log('Payment verification callback received');
   const { txnid } = req.params;
 
-  //find email base on txnid
   try {
     const payuClient = new PayU({ key: payu_key, salt: payu_salt });
     const verifiedData = await payuClient.verifyPayment(txnid);
 
     if (!verifiedData?.transaction_details?.[txnid]) {
-      console.error('Transaction details missing');
+      console.error('Transaction details missing for txnid:', txnid);
       return res.redirect(`${FRONTEND_BASE_URL}/payment/failed/${txnid}`);
     }
-    const [booking] = await pool.execute(
-      'SELECT guest_email FROM bookings WHERE payment_txn_id = ?',
-      [txnid]
-    );
-    if (booking.length === 0) {
-      console.error('Booking not found for txnid:', txnid);
-      return res.redirect(`${FRONTEND_BASE_URL}/payment/failed/${txnid}`);
-    }
-    const guestEmail = booking[0].guest_email;
-    console.log('Guest email found:', guestEmail);
-    if (!guestEmail) {
-      console.error('Guest email not found for txnid:', txnid);
-      return res.redirect(`${FRONTEND_BASE_URL}/payment/failed/${txnid}`);
-    }
-    const transaction = verifiedData.transaction_details[txnid];
-    const newStatus = transaction.status === "success" ? "success" : "failed";
 
+    const transaction = verifiedData.transaction_details[txnid];
+    const newStatus = transaction.status === 'success' ? 'success' : 'failed';
+
+    // Update payment status
     await pool.execute(
       'UPDATE bookings SET payment_status = ? WHERE payment_txn_id = ?',
       [newStatus, txnid]
     );
 
-    if (newStatus === "success") {
-      // Send confirmation email to user
-      console.log('Payment successful, sending confirmation email');
-      sendPdfEmail(guestEmail); // Call the function to send PDF email
+    // Fetch booking info
+    const [booking] = await pool.execute(
+      `SELECT guest_email, id, guest_name, guest_phone, rooms, adults, children, food_veg, food_nonveg,
+              food_jain, check_in, check_out, total_amount, advance_amount 
+       FROM bookings 
+       WHERE payment_txn_id = ?`,
+      [txnid]
+    );
 
+    console.log('Booking details:', booking);
+
+    if (newStatus === 'success' && booking && booking.length > 0) {
+      const bk = booking[0];
+      const remainingAmount = parseFloat(bk.total_amount) - parseFloat(bk.advance_amount);
+
+      // Format check-in/check-out dates
+      const formatDate = (dateValue) => {
+        if (!dateValue) return 'Invalid date';
+        const date = typeof dateValue === 'string' ? new Date(`${dateValue}T00:00:00Z`) : new Date(dateValue);
+        if (isNaN(date.getTime())) {
+          console.error('Invalid date format:', dateValue);
+          return 'Invalid date';
+        }
+        return format(date, 'dd/MM/yyyy');
+      };
+
+      // Validate email address format
+      const recipientEmail = bk.guest_email?.trim();
+      const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+      if (!recipientEmail || !isValidEmail(recipientEmail)) {
+        console.error('❌ Invalid or missing email, aborting mail send:', {
+          txnid,
+          guest_email: bk.guest_email
+        });
+      } else {
+        try {
+          await sendPdfEmail({
+            email: recipientEmail,
+            name: bk.guest_name,
+            BookingId: bk.id,
+            BookingDate: formatDate(bk.check_in),
+            CheckoutDate: formatDate(bk.check_out),
+            totalPrice: bk.total_amount,
+            advancePayable: bk.advance_amount,
+            remainingAmount: remainingAmount.toFixed(2),
+            mobile: bk.guest_phone,
+            totalPerson: bk.adults + bk.children,
+            adult: bk.adults,
+            child: bk.children,
+            vegCount: bk.food_veg,
+            nonvegCount: bk.food_nonveg,
+            joinCount: bk.food_jain
+          });
+          console.log('✅ Confirmation email sent to:', recipientEmail);
+        } catch (e) {
+          console.error('❌ Failed to send confirmation email for txnid:', txnid, '\nError:', e.message);
+        }
+      }
     }
+
+
     console.log(`Payment ${newStatus} for txnid: ${txnid}`);
-
-    // Redirect to frontend with GET parameters
     res.redirect(`${FRONTEND_BASE_URL}/payment/${newStatus}/${txnid}`);
-
   } catch (error) {
     console.error('Verification error:', error);
     res.redirect(`${FRONTEND_BASE_URL}/payment/failed/${txnid}`);
   }
 });
+
+
 
 // PUT /admin/bookings/:id/status - Manually update payment status
 router.put('/:id/status', async (req, res) => {

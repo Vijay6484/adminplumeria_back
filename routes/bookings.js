@@ -627,7 +627,7 @@ router.post('/payments/payu', async (req, res) => {
       email: truncatedEmail,
       phone: cleanPhone.substring(0, 10),
       surl: `https://a.plumeriaretreat.com/admin/bookings/verify/${txnid}`, // Backend endpoint
-      furl: `https://a.plumeriaretreat.com/admin/bookings/verify/${txnid}`, // Backend endpoint
+      furl: `https://a.plumeriaretreat.com/bookings/verify/${txnid}`, // Backend endpoint
       hash,
       currency: "INR"
     };
@@ -768,12 +768,28 @@ router.post('/payments/payu', async (req, res) => {
 // });
 
 // POST /verify/:txnid - Handle PayU callback (UPDATED)
-async function sendPdfEmail(email, name, BookingId, BookingDate, CheckoutDate, totalPrice, advancePayable, remainingAmount,
-  mobile, totalPerson, adult, child, vegCount, nonvegCount, joinCount) {
+async function sendPdfEmail(params) {
+  const { 
+    email, 
+    name, 
+    BookingId, 
+    BookingDate, 
+    CheckoutDate, 
+    totalPrice, 
+    advancePayable, 
+    remainingAmount,
+    mobile, 
+    totalPerson, 
+    adult, 
+    child, 
+    vegCount, 
+    nonvegCount, 
+    joinCount 
+  } = params;
 
   console.log('Sending PDF email to:', email);
 
-  if (!email || typeof email !== 'string' || !email.includes('@')) {
+  if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     console.error('❌ Invalid or missing email, aborting mail send:', email);
     return;
   }
@@ -1326,31 +1342,34 @@ async function sendPdfEmail(email, name, BookingId, BookingDate, CheckoutDate, t
   </table>
 </body>
 
-</html>` // your complete HTML content
+</html>`
+  // ... (rest of the HTML template remains the same) ...
 
   const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     secure: true,
     port: 465,
     auth: {
-      user: "chandan56348@gmail.com",
-      pass: "mshnxdgdedgdacyy"
+      user: process.env.EMAIL_USER || "chandan56348@gmail.com",
+      pass: process.env.EMAIL_PASS || "mshnxdgdedgdacyy"
     }
   });
 
   const mailOptions = {
-    from: "chandan56348@gmail.com",
-    to: email.trim(),  // ensure no accidental space
+    from: process.env.EMAIL_FROM || "Plumeria Retreat <chandan56348@gmail.com>",
+    to: email.trim(),
     subject: 'Resort Camping Booking',
-    html: html,
+    html: html, // Make sure HTML variable is defined
   };
 
-  console.log('Mail options:', mailOptions);
-
-  transporter.sendMail(mailOptions, (err, info) => {
-    if (err) return console.error('❌ Mail send error:', err);
+  try {
+    const info = await transporter.sendMail(mailOptions);
     console.log('✅ Email sent:', info.response);
-  });
+    return info;
+  } catch (err) {
+    console.error('❌ Mail send error:', err);
+    throw err;
+  }
 }
 
 router.post('/verify/:txnid', async (req, res) => {
@@ -1376,7 +1395,7 @@ router.post('/verify/:txnid', async (req, res) => {
     );
 
     // Fetch booking info
-    const [booking] = await pool.execute(
+    const [bookings] = await pool.execute(
       `SELECT guest_email, id, guest_name, guest_phone, rooms, adults, children, food_veg, food_nonveg,
               food_jain, check_in, check_out, total_amount, advance_amount 
        FROM bookings 
@@ -1384,21 +1403,21 @@ router.post('/verify/:txnid', async (req, res) => {
       [txnid]
     );
 
-    console.log('Booking details:', booking);
-
-    if (newStatus === 'success' && booking && booking.length > 0) {
-      const bk = booking[0];
+    if (newStatus === 'success' && bookings && bookings.length > 0) {
+      const bk = bookings[0];
       const remainingAmount = parseFloat(bk.total_amount) - parseFloat(bk.advance_amount);
 
       // Format check-in/check-out dates
       const formatDate = (dateValue) => {
         if (!dateValue) return 'Invalid date';
-        const date = typeof dateValue === 'string' ? new Date(`${dateValue}T00:00:00Z`) : new Date(dateValue);
-        if (isNaN(date.getTime())) {
+        try {
+          const date = new Date(dateValue);
+          if (isNaN(date.getTime())) throw new Error('Invalid date');
+          return format(date, 'dd/MM/yyyy');
+        } catch (e) {
           console.error('Invalid date format:', dateValue);
           return 'Invalid date';
         }
-        return format(date, 'dd/MM/yyyy');
       };
 
       // Validate email address format
@@ -1406,10 +1425,7 @@ router.post('/verify/:txnid', async (req, res) => {
       const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
       if (!recipientEmail || !isValidEmail(recipientEmail)) {
-        console.error('❌ Invalid or missing email, aborting mail send:', {
-          txnid,
-          guest_email: bk.guest_email
-        });
+        console.error('❌ Invalid or missing email, aborting mail send:', recipientEmail);
       } else {
         try {
           await sendPdfEmail({
@@ -1435,7 +1451,6 @@ router.post('/verify/:txnid', async (req, res) => {
         }
       }
     }
-
 
     console.log(`Payment ${newStatus} for txnid: ${txnid}`);
     res.redirect(`${FRONTEND_BASE_URL}/payment/${newStatus}/${txnid}`);

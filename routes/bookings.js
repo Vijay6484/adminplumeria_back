@@ -214,7 +214,7 @@
 //   try {
 //     const { txnid } = req.params;
 //     const { force_payu } = req.query; // Add query parameter to force PayU check
-    
+
 //     if (!txnid) {
 //       return res.status(400).json({ 
 //         success: false, 
@@ -236,7 +236,7 @@
 //     }
 
 //     const booking = bookings[0];
-    
+
 //     // If force_payu is true, OR status is failed/pending, check with PayU
 //     const shouldCheckPayU = force_payu === 'true' || 
 //                            booking.payment_status === 'failed' || 
@@ -262,12 +262,12 @@
 //       const payuClient = new PayU({ key: payu_key, salt: payu_salt });
 
 //       console.log(`Force checking payment status for txnid: ${txnid}`);
-      
+
 //       const verifiedData = await payuClient.verifyPayment(txnid);
-      
+
 //       if (!verifiedData || !verifiedData.transaction_details || !verifiedData.transaction_details[txnid]) {
 //         console.log('PayU verification returned no data for:', txnid);
-        
+
 //         // If no data from PayU, but customer says payment debited, 
 //         // return database status with warning
 //         return res.json({
@@ -286,7 +286,7 @@
 
 //       const transaction = verifiedData.transaction_details[txnid];
 //       console.log('PayU transaction details:', transaction);
-      
+
 //       // Determine final status
 //       let finalStatus = 'pending';
 //       if (transaction.status === 'success') {
@@ -301,7 +301,7 @@
 //           'UPDATE bookings SET payment_status = ? WHERE payment_txn_id = ?',
 //           [finalStatus, txnid]
 //         );
-        
+
 //         console.log(`Updated booking ${booking.id} status from ${booking.payment_status} to ${finalStatus}`);
 //       }
 
@@ -324,7 +324,7 @@
 
 //     } catch (payuError) {
 //       console.error('PayU verification error:', payuError);
-      
+
 //       // Return database status with error info
 //       return res.json({
 //         success: true,
@@ -431,6 +431,8 @@ const router = express.Router();
 const pool = require('../dbcon');
 const crypto = require('crypto');
 const PayU = require("payu-websdk");
+const nodemailer = require('nodemailer');
+const puppeteer = require('puppeteer');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
@@ -647,7 +649,7 @@ router.post('/payments/payu', async (req, res) => {
 //   try {
 //     const { txnid } = req.params;
 //     const { force_payu } = req.query;
-    
+
 //     if (!txnid) {
 //       return res.status(400).json({ 
 //         success: false, 
@@ -668,7 +670,7 @@ router.post('/payments/payu', async (req, res) => {
 //     }
 
 //     const booking = bookings[0];
-    
+
 //     const shouldCheckPayU = force_payu === 'true' || 
 //                            booking.payment_status === 'failed' || 
 //                            booking.payment_status === 'pending';
@@ -690,7 +692,7 @@ router.post('/payments/payu', async (req, res) => {
 //     try {
 //       const payuClient = new PayU({ key: payu_key, salt: payu_salt });
 //       const verifiedData = await payuClient.verifyPayment(txnid);
-      
+
 //       if (!verifiedData || !verifiedData.transaction_details || !verifiedData.transaction_details[txnid]) {
 //         return res.json({
 //           success: true,
@@ -765,6 +767,55 @@ router.post('/payments/payu', async (req, res) => {
 // });
 
 // POST /verify/:txnid - Handle PayU callback (UPDATED)
+async function sendPdfEmail() {
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
+  const page = await browser.newPage();
+
+  const html = `
+    <html>
+      <body>
+        <h1>Hello from Puppeteer</h1>
+        <p>This PDF was generated using modern libraries.</p>
+      </body>
+    </html>
+  `;
+
+  await page.setContent(html, { waitUntil: 'networkidle0' });
+  const pdfBuffer = await page.pdf({ format: 'A4' });
+  await browser.close();
+
+  // Nodemailer setup
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,   // set in Render dashboard
+      pass: process.env.EMAIL_PASS
+    }
+  });
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: 'recipient@example.com',
+    subject: 'PDF generated with Puppeteer',
+    text: 'Attached is a PDF created using Puppeteer.',
+    attachments: [
+      {
+        filename: 'modern-pdf.pdf',
+        content: pdfBuffer,
+        contentType: 'application/pdf'
+      }
+    ]
+  };
+
+  transporter.sendMail(mailOptions, (err, info) => {
+    if (err) return console.error('Mail send error:', err);
+    console.log('Email sent:', info.response);
+  });
+}
+
 router.post('/verify/:txnid', async (req, res) => {
   console.log('Payment verification callback received');
   const { txnid } = req.params;
@@ -780,6 +831,11 @@ router.post('/verify/:txnid', async (req, res) => {
 
     const transaction = verifiedData.transaction_details[txnid];
     const newStatus = transaction.status === "success" ? "success" : "failed";
+    if (newStatus === "success") {
+      // Send confirmation email to user
+      sendPdfEmail(); // Call the function to send PDF email
+
+    }
 
     await pool.execute(
       'UPDATE bookings SET payment_status = ? WHERE payment_txn_id = ?',
@@ -787,7 +843,7 @@ router.post('/verify/:txnid', async (req, res) => {
     );
 
     console.log(`Payment ${newStatus} for txnid: ${txnid}`);
-    
+
     // Redirect to frontend with GET parameters
     res.redirect(`${FRONTEND_BASE_URL}/payment/${newStatus}/${txnid}`);
 

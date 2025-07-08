@@ -625,8 +625,8 @@ router.post('/payments/payu', async (req, res) => {
       firstname: truncatedFirstname,
       email: truncatedEmail,
       phone: cleanPhone.substring(0, 10),
-      surl: `https://adminplumeria-back.onrender.com/admin/bookings/verify/${txnid}`, // Backend endpoint
-      furl: `https://adminplumeria-back.onrender.com/admin/bookings/verify/${txnid}`, // Backend endpoint
+      surl: `http://localhost:5000/admin/bookings/verify/${txnid}`, // Backend endpoint
+      furl: `http://localhost:5000/admin/bookings/verify/${txnid}`, // Backend endpoint
       hash,
       currency: "INR"
     };
@@ -768,6 +768,7 @@ router.post('/payments/payu', async (req, res) => {
 
 // POST /verify/:txnid - Handle PayU callback (UPDATED)
 async function sendPdfEmail(email) {
+  console.log('Sending PDF email to:', email);
   const browser = await puppeteer.launch({
     headless: 'new',
     args: ['--no-sandbox', '--disable-setuid-sandbox']
@@ -789,10 +790,12 @@ async function sendPdfEmail(email) {
 
   // Nodemailer setup
   const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',//smtp,
+    secure: true,
+    port: 465,
     auth: {
       user: "chandan56348@gmail.com",   // set in Render dashboard
-      pass: "Chandan@2020"
+      pass: "mshnxdgdedgdacyy"
     }
   });
 
@@ -808,8 +811,9 @@ async function sendPdfEmail(email) {
         contentType: 'application/pdf'
       }
     ]
-  };
 
+  };
+  console.log('Mail options:', mailOptions);
   transporter.sendMail(mailOptions, (err, info) => {
     if (err) return console.error('Mail send error:', err);
     console.log('Email sent:', info.response);
@@ -821,19 +825,6 @@ router.post('/verify/:txnid', async (req, res) => {
   const { txnid } = req.params;
 
   //find email base on txnid
-  // const [booking] = await pool.execute(
-  //   'SELECT guest_email FROM bookings WHERE payment_txn_id = ?',
-  //   [txnid]
-  // );
-  // if (booking.length === 0) {
-  //   console.error('Booking not found for txnid:', txnid);
-  //   return res.redirect(`${FRONTEND_BASE_URL}/payment/failed/${txnid}`);
-  // }
-  // const guestEmail = booking[0].guest_email;
-  // if (!guestEmail) {
-  //   console.error('Guest email not found for txnid:', txnid);
-  //   return res.redirect(`${FRONTEND_BASE_URL}/payment/failed/${txnid}`);
-  // }
   try {
     const payuClient = new PayU({ key: payu_key, salt: payu_salt });
     const verifiedData = await payuClient.verifyPayment(txnid);
@@ -842,20 +833,34 @@ router.post('/verify/:txnid', async (req, res) => {
       console.error('Transaction details missing');
       return res.redirect(`${FRONTEND_BASE_URL}/payment/failed/${txnid}`);
     }
-
+    const [booking] = await pool.execute(
+      'SELECT guest_email FROM bookings WHERE payment_txn_id = ?',
+      [txnid]
+    );
+    if (booking.length === 0) {
+      console.error('Booking not found for txnid:', txnid);
+      return res.redirect(`${FRONTEND_BASE_URL}/payment/failed/${txnid}`);
+    }
+    const guestEmail = booking[0].guest_email;
+    console.log('Guest email found:', guestEmail);
+    if (!guestEmail) {
+      console.error('Guest email not found for txnid:', txnid);
+      return res.redirect(`${FRONTEND_BASE_URL}/payment/failed/${txnid}`);
+    }
     const transaction = verifiedData.transaction_details[txnid];
     const newStatus = transaction.status === "success" ? "success" : "failed";
-    // if (newStatus === "success") {
-    //   // Send confirmation email to user
-    //   sendPdfEmail(guestEmail); // Call the function to send PDF email
-
-    // }
 
     await pool.execute(
       'UPDATE bookings SET payment_status = ? WHERE payment_txn_id = ?',
       [newStatus, txnid]
     );
 
+    if (newStatus === "success") {
+      // Send confirmation email to user
+      console.log('Payment successful, sending confirmation email');
+      sendPdfEmail(guestEmail); // Call the function to send PDF email
+
+    }
     console.log(`Payment ${newStatus} for txnid: ${txnid}`);
 
     // Redirect to frontend with GET parameters

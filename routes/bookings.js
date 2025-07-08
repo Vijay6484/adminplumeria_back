@@ -767,7 +767,7 @@ router.post('/payments/payu', async (req, res) => {
 // });
 
 // POST /verify/:txnid - Handle PayU callback (UPDATED)
-async function sendPdfEmail() {
+async function sendPdfEmail(email) {
   const browser = await puppeteer.launch({
     headless: 'new',
     args: ['--no-sandbox', '--disable-setuid-sandbox']
@@ -791,14 +791,14 @@ async function sendPdfEmail() {
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-      user: process.env.EMAIL_USER,   // set in Render dashboard
-      pass: process.env.EMAIL_PASS
+      user: "chandan56348@gmail.com",   // set in Render dashboard
+      pass: "Chandan@2020"
     }
   });
 
   const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to: 'recipient@example.com',
+    from: "chandan56348@gmail.com",
+    to: email,
     subject: 'PDF generated with Puppeteer',
     text: 'Attached is a PDF created using Puppeteer.',
     attachments: [
@@ -820,6 +820,20 @@ router.post('/verify/:txnid', async (req, res) => {
   console.log('Payment verification callback received');
   const { txnid } = req.params;
 
+  //find email base on txnid
+  const [booking] = await pool.execute(
+    'SELECT guest_email FROM bookings WHERE payment_txn_id = ?',
+    [txnid]
+  );
+  if (booking.length === 0) {
+    console.error('Booking not found for txnid:', txnid);
+    return res.redirect(`${FRONTEND_BASE_URL}/payment/failed/${txnid}`);
+  }
+  const guestEmail = booking[0].guest_email;
+  if (!guestEmail) {
+    console.error('Guest email not found for txnid:', txnid);
+    return res.redirect(`${FRONTEND_BASE_URL}/payment/failed/${txnid}`);
+  }
   try {
     const payuClient = new PayU({ key: payu_key, salt: payu_salt });
     const verifiedData = await payuClient.verifyPayment(txnid);
@@ -833,7 +847,7 @@ router.post('/verify/:txnid', async (req, res) => {
     const newStatus = transaction.status === "success" ? "success" : "failed";
     if (newStatus === "success") {
       // Send confirmation email to user
-      sendPdfEmail(); // Call the function to send PDF email
+      sendPdfEmail(guestEmail); // Call the function to send PDF email
 
     }
 

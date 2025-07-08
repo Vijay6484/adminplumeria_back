@@ -625,8 +625,8 @@ router.post('/payments/payu', async (req, res) => {
       firstname: truncatedFirstname,
       email: truncatedEmail,
       phone: cleanPhone.substring(0, 10),
-      surl: `http://localhost:5000/admin/bookings/verify/${txnid}`, // Backend endpoint
-      furl: `http://localhost:5000/admin/bookings/verify/${txnid}`, // Backend endpoint
+      surl: `https://adminplumeria-back.onrender.com/admin/bookings/verify/${txnid}`, // Backend endpoint
+      furl: `https://adminplumeria-back.onrender.com/admin/bookings/verify/${txnid}`, // Backend endpoint
       hash,
       currency: "INR"
     };

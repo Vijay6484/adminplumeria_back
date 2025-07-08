@@ -821,19 +821,19 @@ router.post('/verify/:txnid', async (req, res) => {
   const { txnid } = req.params;
 
   //find email base on txnid
-  const [booking] = await pool.execute(
-    'SELECT guest_email FROM bookings WHERE payment_txn_id = ?',
-    [txnid]
-  );
-  if (booking.length === 0) {
-    console.error('Booking not found for txnid:', txnid);
-    return res.redirect(`${FRONTEND_BASE_URL}/payment/failed/${txnid}`);
-  }
-  const guestEmail = booking[0].guest_email;
-  if (!guestEmail) {
-    console.error('Guest email not found for txnid:', txnid);
-    return res.redirect(`${FRONTEND_BASE_URL}/payment/failed/${txnid}`);
-  }
+  // const [booking] = await pool.execute(
+  //   'SELECT guest_email FROM bookings WHERE payment_txn_id = ?',
+  //   [txnid]
+  // );
+  // if (booking.length === 0) {
+  //   console.error('Booking not found for txnid:', txnid);
+  //   return res.redirect(`${FRONTEND_BASE_URL}/payment/failed/${txnid}`);
+  // }
+  // const guestEmail = booking[0].guest_email;
+  // if (!guestEmail) {
+  //   console.error('Guest email not found for txnid:', txnid);
+  //   return res.redirect(`${FRONTEND_BASE_URL}/payment/failed/${txnid}`);
+  // }
   try {
     const payuClient = new PayU({ key: payu_key, salt: payu_salt });
     const verifiedData = await payuClient.verifyPayment(txnid);
@@ -845,11 +845,11 @@ router.post('/verify/:txnid', async (req, res) => {
 
     const transaction = verifiedData.transaction_details[txnid];
     const newStatus = transaction.status === "success" ? "success" : "failed";
-    if (newStatus === "success") {
-      // Send confirmation email to user
-      sendPdfEmail(guestEmail); // Call the function to send PDF email
+    // if (newStatus === "success") {
+    //   // Send confirmation email to user
+    //   sendPdfEmail(guestEmail); // Call the function to send PDF email
 
-    }
+    // }
 
     await pool.execute(
       'UPDATE bookings SET payment_status = ? WHERE payment_txn_id = ?',

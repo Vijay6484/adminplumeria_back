@@ -581,6 +581,99 @@ router.post('/', async (req, res) => {
   }
 });
 
+router.post('/offline', async (req, res) => {
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const {
+      guest_name, guest_email, guest_phone, accommodation_id,
+      check_in, check_out, adults = 1, children = 0, rooms = 1,
+      food_veg = 0, food_nonveg = 0, food_jain = 0,
+      total_amount, advance_amount = 0
+    } = req.body;
+
+    // Validate required fields
+    const requiredFields = ['guest_name', 'guest_email', 'accommodation_id', 'check_in', 'check_out', 'total_amount'];
+    const missingFields = requiredFields.filter(field => !req.body[field]);
+
+    if (missingFields.length > 0) {
+      return res.status(400).json({ success: false, error: `Missing required fields: ${missingFields.join(', ')}` });
+    }
+
+    // Validate food count vs guest count
+    const totalGuests = adults + children;
+    const totalFood = food_veg + food_nonveg + food_jain;
+
+    if (totalFood > 0 && totalFood !== totalGuests) {
+      return res.status(400).json({ success: false, error: 'Food preferences must match total guests' });
+    }
+
+    // Validate check-in/out dates
+    if (new Date(check_in) >= new Date(check_out)) {
+      return res.status(400).json({ success: false, error: 'Check-out must be after check-in' });
+    }
+
+    // Validate positive values
+    if (total_amount <= 0 || advance_amount < 0) {
+      return res.status(400).json({ success: false, error: 'Invalid amount values' });
+    }
+
+    if (adults < 1 || rooms < 1) {
+      return res.status(400).json({ success: false, error: 'Must have at least 1 adult and 1 room' });
+    }
+
+    const payment_status = 'success';
+    const payment_txn_id = `BOOK-${uuidv4()}`;
+
+    // Insert into bookings (no package_id)
+    const [result] = await connection.execute(`
+      INSERT INTO bookings (
+        guest_name, guest_email, guest_phone, accommodation_id,
+        check_in, check_out, adults, children, rooms, food_veg, food_nonveg,
+        food_jain, total_amount, advance_amount, payment_status, payment_txn_id, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        guest_name, guest_email, guest_phone || null, accommodation_id,
+        check_in, check_out, adults, children, rooms, food_veg, food_nonveg,
+        food_jain, total_amount, advance_amount, payment_status, payment_txn_id, new Date()
+      ]
+    );
+
+    const booking_id = result.insertId;
+
+    // Fetch booking details with accommodation
+    const [[booking]] = await connection.execute(`
+      SELECT b.*, a.name AS accommodation_name, a.address AS accommodation_address,
+             a.latitude, a.longitude
+      FROM bookings b
+      JOIN accommodations a ON b.accommodation_id = a.id
+      WHERE b.id = ?`, [booking_id]
+    );
+
+    await connection.commit();
+
+    res.json({
+      success: true,
+      data: { booking }
+    });
+
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error creating booking:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create booking',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  } finally {
+    connection.release();
+  }
+});
+
+
+
 // POST /admin/bookings/payments/payu - Initiate PayU payment (UPDATED)
 router.post('/payments/payu', async (req, res) => {
   try {
@@ -784,7 +877,12 @@ async function sendPdfEmail(params) {
     child, 
     vegCount, 
     nonvegCount, 
-    joinCount 
+    joinCount,
+    accommodationName,
+    accommodationAddress,
+    latitude,
+    longitude
+
   } = params;
 
   console.log('Sending PDF email to:', email);
@@ -1006,7 +1104,7 @@ async function sendPdfEmail(params) {
                               <tr>
                                 <td class="h2 pb25 mainhead"
                                   style="color:#444444; font-family:Lato, Arial ,sans-serif; font-size:22px; font-weight:bold; line-height:24px;padding-bottom:8px;">
-                                  <div mc:edit="text_2">Plumeria Retreat Pawna lake AC cottage </div>
+                                  <div mc:edit="text_2">${accommodationName} </div>
                                 </td>
                               </tr>
                               <tr>
@@ -1082,7 +1180,7 @@ async function sendPdfEmail(params) {
                                     <tr>
                                       <td class="pb25"
                                         style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px; padding-bottom:8px;width:50%;">
-                                        <div mc:edit="text_3"><span>Plumeria Retreat Pawna lake AC cottage </span> has
+                                        <div mc:edit="text_3"><span>${accommodationName} </span> has
                                           received a request for booking of
                                           your Camping as per the details below. The primary guest <span>Vijay</span>
                                           will be
@@ -1122,7 +1220,7 @@ async function sendPdfEmail(params) {
                                     <tr>
                                       <td class="pb25"
                                         style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px; padding-bottom:8px;width:100%;">
-                                        <div mc:edit="text_3"><b>Team <span>Plumeria Retreat Pawna lake AC cottage
+                                        <div mc:edit="text_3"><b>Team <span>${accommodationName}
                                             </span></b></div>
                                       </td>
                                     </tr>
@@ -1222,7 +1320,7 @@ async function sendPdfEmail(params) {
                                           <tr>
                                             <td class="pb25 bordr"
                                               style="color:#216896;border-bottom: 3px solid #216896; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px; padding-bottom:6px;">
-                                              <div mc:edit="text_3"><b>Plumeria Retreat Pawna lake AC cottage Contact
+                                              <div mc:edit="text_3"><b>${accommodationName} Contact
                                                   Info</b></div>
                                             </td>
                                           </tr>
@@ -1237,14 +1335,13 @@ async function sendPdfEmail(params) {
                                           <tr>
                                             <td class="pb25"
                                               style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px;">
-                                              <div mc:edit="text_3"><b>Plumeria Retreat Pawna lake AC cottage </b></div>
+                                              <div mc:edit="text_3"><b>${accommodationName} </b></div>
                                             </td>
                                           </tr>
                                           <tr>
                                             <td class="pb25"
                                               style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px;">
-                                              <div mc:edit="text_3">At- <span>At- Bramhanoli , phangane, pawna lake,
-                                                  lonavala </span></div>
+                                              <div mc:edit="text_3">At- <span>${accommodationAddress}</span></div>
                                             </td>
                                           </tr>
                                           <tr>
@@ -1262,7 +1359,7 @@ async function sendPdfEmail(params) {
                                             <td class="pb25"
                                               style="color:#216896; font-family:Lato, Arial,sans-serif; font-size:14px; line-height:22px;">
                                               <div mc:edit="text_3">
-                                                <a href="http://maps.google.com/maps?q=18.6641847,73.4951777"
+                                                <a href="http://maps.google.com/maps?q=${latitude},${longitude}"
                                                   style="color: #216896;">Google Maps Link</a>
                                               </div>
                                             </td>
@@ -1394,10 +1491,10 @@ router.post('/verify/:txnid', async (req, res) => {
       [newStatus, txnid]
     );
 
-    // Fetch booking info
+    // Fetch booking info with accommodation_id
     const [bookings] = await pool.execute(
       `SELECT guest_email, id, guest_name, guest_phone, rooms, adults, children, food_veg, food_nonveg,
-              food_jain, check_in, check_out, total_amount, advance_amount 
+              food_jain, check_in, check_out, total_amount, advance_amount, accommodation_id 
        FROM bookings 
        WHERE payment_txn_id = ?`,
       [txnid]
@@ -1407,7 +1504,7 @@ router.post('/verify/:txnid', async (req, res) => {
       const bk = bookings[0];
       const remainingAmount = parseFloat(bk.total_amount) - parseFloat(bk.advance_amount);
 
-      // Format check-in/check-out dates
+      // Format dates
       const formatDate = (dateValue) => {
         if (!dateValue) return 'Invalid date';
         try {
@@ -1420,9 +1517,16 @@ router.post('/verify/:txnid', async (req, res) => {
         }
       };
 
-      // Validate email address format
+      // Validate email
       const recipientEmail = bk.guest_email?.trim();
       const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+      // Fetch accommodation details
+      const [accommodations] = await pool.execute(
+        `SELECT name, address, latitude, longitude FROM accommodations WHERE id = ?`,
+        [bk.accommodation_id]
+      );
+      const acc = accommodations[0] || {};
 
       if (!recipientEmail || !isValidEmail(recipientEmail)) {
         console.error('❌ Invalid or missing email, aborting mail send:', recipientEmail);
@@ -1443,7 +1547,11 @@ router.post('/verify/:txnid', async (req, res) => {
             child: bk.children,
             vegCount: bk.food_veg,
             nonvegCount: bk.food_nonveg,
-            joinCount: bk.food_jain
+            joinCount: bk.food_jain,
+            accommodationName: acc.name || '',
+            accommodationAddress: acc.address || '',
+            latitude: acc.latitude || '',
+            longitude: acc.longitude || ''
           });
           console.log('✅ Confirmation email sent to:', recipientEmail);
         } catch (e) {
@@ -1460,6 +1568,44 @@ router.post('/verify/:txnid', async (req, res) => {
   }
 });
 
+router.get('/details/:txnid', async (req, res) => {
+  const { txnid } = req.params;
+
+  try {
+    // Step 1: Fetch booking by txnid
+    const [bookings] = await pool.execute(
+      `SELECT guest_email, id, guest_name, guest_phone, rooms, adults, children, food_veg, food_nonveg,
+              food_jain, check_in, check_out, total_amount, advance_amount, accommodation_id 
+       FROM bookings 
+       WHERE payment_txn_id = ?`,
+      [txnid]
+    );
+
+    if (bookings.length === 0) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    const booking = bookings[0];
+
+    // Step 2: Fetch accommodation details
+    const [accommodations] = await pool.execute(
+      `SELECT name, address, latitude, longitude FROM accommodations WHERE id = ?`,
+      [booking.accommodation_id]
+    );
+
+    const accommodation = accommodations[0] || {};
+
+    // Step 3: Combine and return
+    return res.json({
+      booking,
+      accommodation
+    });
+
+  } catch (err) {
+    console.error('Error fetching booking details:', err);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
 
 
 // PUT /admin/bookings/:id/status - Manually update payment status

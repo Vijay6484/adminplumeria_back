@@ -522,10 +522,12 @@ router.post('/', async (req, res) => {
       food_veg = 0, food_nonveg = 0, food_jain = 0, total_amount,
       advance_amount = 0, payment_method = 'payu'
     } = req.body;
-
+    console.log(req.body);
     const requiredFields = ['guest_name', 'accommodation_id', 'package_id', 'check_in', 'check_out', 'total_amount'];
-    const missingFields = requiredFields.filter(field => !req.body[field]);
-
+    const missingFields = requiredFields.filter(
+      field => req.body[field] === undefined || req.body[field] === null
+    );
+    console.log(missingFields);
     if (missingFields.length > 0) {
       return res.status(400).json({ success: false, error: `Missing required fields: ${missingFields.join(', ')}` });
     }
@@ -862,21 +864,21 @@ router.post('/payments/payu', async (req, res) => {
 
 // POST /verify/:txnid - Handle PayU callback (UPDATED)
 async function sendPdfEmail(params) {
-  const { 
-    email, 
-    name, 
-    BookingId, 
-    BookingDate, 
-    CheckoutDate, 
-    totalPrice, 
-    advancePayable, 
+  const {
+    email,
+    name,
+    BookingId,
+    BookingDate,
+    CheckoutDate,
+    totalPrice,
+    advancePayable,
     remainingAmount,
-    mobile, 
-    totalPerson, 
-    adult, 
-    child, 
-    vegCount, 
-    nonvegCount, 
+    mobile,
+    totalPerson,
+    adult,
+    child,
+    vegCount,
+    nonvegCount,
     joinCount,
     accommodationName,
     accommodationAddress,

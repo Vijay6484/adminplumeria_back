@@ -629,7 +629,7 @@ router.post('/offline', async (req, res) => {
     const payment_status = 'success';
     const payment_txn_id = `BOOK-${uuidv4()}`;
 
-    // Insert into bookings (no package_id)
+    // Insert into bookings
     const [result] = await connection.execute(`
       INSERT INTO bookings (
         guest_name, guest_email, guest_phone, accommodation_id,
@@ -648,17 +648,30 @@ router.post('/offline', async (req, res) => {
     // Fetch booking details with accommodation
     const [[booking]] = await connection.execute(`
       SELECT b.*, a.name AS accommodation_name, a.address AS accommodation_address,
-             a.latitude, a.longitude
+             a.latitude, a.longitude, a.owner_id
       FROM bookings b
       JOIN accommodations a ON b.accommodation_id = a.id
       WHERE b.id = ?`, [booking_id]
     );
 
+    let ownerEmail = null;
+
+    // Get owner email using owner_id
+    if (booking.owner_id) {
+      const [[user]] = await connection.execute(`
+        SELECT email FROM users WHERE id = ?
+      `, [booking.owner_id]);
+      ownerEmail = user?.email || null;
+    }
+
     await connection.commit();
 
     res.json({
       success: true,
-      data: { booking }
+      data: {
+        booking,
+        owner_email: ownerEmail
+      }
     });
 
   } catch (error) {
@@ -673,6 +686,7 @@ router.post('/offline', async (req, res) => {
     connection.release();
   }
 });
+
 
 
 
@@ -869,6 +883,7 @@ async function sendPdfEmail(params) {
     name,
     BookingId,
     BookingDate,
+    CheckinDate,
     CheckoutDate,
     totalPrice,
     advancePayable,
@@ -1185,7 +1200,7 @@ async function sendPdfEmail(params) {
                                         style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px; padding-bottom:8px;width:50%;">
                                         <div mc:edit="text_3"><span>${accommodationName} </span> has
                                           received a request for booking of
-                                          your Camping as per the details below. The primary guest <span>Vijay</span>
+                                          your Camping as per the details below. The primary guest <span>${name}</span>
                                           will be
                                           carrying a copy of this e-voucher. </div>
                                       </td>
@@ -1250,7 +1265,7 @@ async function sendPdfEmail(params) {
                                       <td valign="top"
                                         style="border: 1px solid #dddddd;text-align: left;padding: 6px 7px 8px;color: #000000;font-family: Lato, Arial,sans-serif;font-size: 13px;line-height: 15px;">
                                         <p style="padding-bottom: 5px;margin: 0px;">Mobile: <b>${mobile}</b></p>
-                                        <p style="padding-bottom: 5px;margin: 0px;">Check In: <b>${BookingDate}</b></p>
+                                        <p style="padding-bottom: 5px;margin: 0px;">Check In: <b>${CheckinDate}}</b></p>
                                         <p style="padding-bottom: 5px;margin: 0px;">Check Out: <b>${CheckoutDate}</b></p>
                                         <p style="padding-bottom: 5px;margin: 0px;">Total Person: <b>${totalPerson}</b></p>
                                         <p style="padding-bottom: 5px;margin: 0px;">Adult: <b>${adult}</b></p>
@@ -1283,7 +1298,7 @@ async function sendPdfEmail(params) {
                                     <tr>
                                       <td class="pb25 mobheadpb"
                                         style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px; padding-bottom:24px;">
-                                        <div mc:edit="text_3"><b>Booking Cancellation Policy:</b> From ${BookingDate},100%
+                                        <div mc:edit="text_3"><b>Booking Cancellation Policy:</b> From ${CheckinDate},100%
                                           penalty will be
                                           charged. In case of no show : no refund.Booking cannot be
                                           cancelled/modified on or after the booking date and time mentioned in
@@ -1406,14 +1421,31 @@ async function sendPdfEmail(params) {
                                           been sent from an
                                           email account that is not monitored. To ensure that you receive
                                           communication related to your booking from Plumeria Retreat Pawna lake AC
-                                          cottage , please add <a href="mailto: ${ownerEmail}"
-                                            style="color: #164e6f;"><b>${ownerEmail}</b></a> to your contact list
+                                          cottage , please add <a href="mailto:babukale60@gmail.com "
+                                            style="color: #164e6f;"><b>babukale60@gmail.com </b></a> to your contact list
                                           and
                                           address book.</div>
                                       </td>
                                     </tr>
                                   </table>
-
+                                   <table width="100%" border="0" cellspacing="0" cellpadding="0" style="padding-top: 15px;">
+                                    <tr>
+                                      <td class="pb25 bordr"
+                                        style="color:#216896;border-bottom: 3px solid #216896; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px; padding-bottom:6px;">
+                                        <div mc:edit="text_3"><b>Things to Carry</b></div>
+                                      </td>
+                                    </tr>
+                                    <tr>
+                                      <td class="pb25"
+                                        style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:15px; line-height:22px; padding-top:8px; padding-bottom:8px;">
+                                        • Always good to carry extra pair of clothes<br>
+                                        • Winter and warm clothes as it will be cold night<br>
+                                        • Toothbrush and paste (toiletries)<br>
+                                        • Any other things you feel necessary<br>
+                                        • Personal medicine if any
+                                      </td>
+                                    </tr>
+                                  </table>
                                 </td>
                               </tr>
                             </table>
@@ -1519,6 +1551,14 @@ router.post('/verify/:txnid', async (req, res) => {
           return 'Invalid date';
         }
       };
+      const today = new Date();
+
+      const day = String(today.getDate()).padStart(2, '0');
+      const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+      const year = today.getFullYear();
+
+      const formattedDate = `${year}-${month}-${day}`;
+      
 
       // Validate email
       const recipientEmail = bk.guest_email?.trim();
@@ -1530,11 +1570,11 @@ router.post('/verify/:txnid', async (req, res) => {
         [bk.accommodation_id]
       );
       const acc = accommodations[0] || {};
-      const owner_id=acc.owner_id;
-      const [user] =await pool.execute(
-        `SELECT email FROM users WHERE id = ?`,[owner_id]
+      const owner_id = acc.owner_id;
+      const [user] = await pool.execute(
+        `SELECT email FROM users WHERE id = ?`, [owner_id]
       );
-      const ownerEmail=user[0].email;
+      const ownerEmail = user[0].email;
       if (!recipientEmail || !isValidEmail(recipientEmail)) {
         console.error('❌ Invalid or missing email, aborting mail send:', recipientEmail);
       } else {
@@ -1543,7 +1583,8 @@ router.post('/verify/:txnid', async (req, res) => {
             email: recipientEmail,
             name: bk.guest_name,
             BookingId: bk.id,
-            BookingDate: formatDate(bk.check_in),
+            BookingDate: formattedDate,
+            CheckinDate:formatDate(bk.check_in),
             CheckoutDate: formatDate(bk.check_out),
             totalPrice: bk.total_amount,
             advancePayable: bk.advance_amount,
@@ -1602,17 +1643,25 @@ router.get('/details/:txnid', async (req, res) => {
       [booking.accommodation_id]
     );
     const accommodation = accommodations[0] || {};
-    const owner_id=accommodation.owner_id;
-      const [user] =await pool.execute(
-        `SELECT email FROM users WHERE id = ?`,[owner_id]
-      );
-      const ownerEmail=user[0].email;
+    const owner_id = accommodation.owner_id;
+    const [user] = await pool.execute(
+      `SELECT email FROM users WHERE id = ?`, [owner_id]
+    );
+    const ownerEmail = user[0].email;
+    const today = new Date();
 
+      const day = String(today.getDate()).padStart(2, '0');
+      const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+      const year = today.getFullYear();
+
+      const bookedDate = `${year}-${month}-${day}`;
+      
     // Step 3: Combine and return
     return res.json({
       booking,
       accommodation,
-      ownerEmail
+      ownerEmail,
+      bookedDate
     });
 
   } catch (err) {
@@ -1653,8 +1702,8 @@ router.put('/:id/status', async (req, res) => {
 // GET /admin/bookings/room-occupancy - Get total rooms booked for a specific date
 router.get('/room-occupancy', async (req, res) => {
   try {
-    const { check_in ,id} = req.query;
-    
+    const { check_in, id } = req.query;
+
     // Validate date parameter
     if (!check_in || !/^\d{4}-\d{2}-\d{2}$/.test(check_in)) {
       return res.status(400).json({
@@ -1672,7 +1721,7 @@ router.get('/room-occupancy', async (req, res) => {
          AND check_out > ?
          AND accommodation_id=?`,
 
-      [check_in, check_in,id]
+      [check_in, check_in, id]
     );
 
     res.json({

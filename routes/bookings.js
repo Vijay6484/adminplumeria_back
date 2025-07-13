@@ -883,7 +883,8 @@ async function sendPdfEmail(params) {
     accommodationName,
     accommodationAddress,
     latitude,
-    longitude
+    longitude,
+    ownerEmail
 
   } = params;
 
@@ -1202,8 +1203,8 @@ async function sendPdfEmail(params) {
                                         <div mc:edit="text_3"><b>The amount payable to <span>Plumeria Retreat Pawna lake
                                               AC cottage </span> for this booking
                                             is <span>INR ${advancePayable}</span> as per the details below. Please email us at
-                                            <a href="mailto: booking@pawanaicamping.com"
-                                              style="color: #216896;">booking@pawanaicamping.com</a> if there is any
+                                            <a href="mailto: ${ownerEmail}"
+                                              style="color: #216896;">${ownerEmail}</a> if there is any
                                             discrepancy in this payment
                                             amount.</b></div>
                                       </td>
@@ -1375,8 +1376,8 @@ async function sendPdfEmail(params) {
                                               style="color:#000000; font-family:Lato, Arial,sans-serif; font-size:14px; line-height:22px;">
                                               <div mc:edit="text_3">
                                                 <span><b>Email- </b></span><span><a
-                                                    href="mailto: booking@pawanaicamping.com"
-                                                    style="color: #164e6f;"><b>booking@pawanaicamping.com</b></a></span>
+                                                    href="mailto:${ownerEmail}"
+                                                    style="color: #164e6f;"><b>${ownerEmail}</b></a></span>
                                               </div>
                                             </td>
                                           </tr>
@@ -1405,8 +1406,8 @@ async function sendPdfEmail(params) {
                                           been sent from an
                                           email account that is not monitored. To ensure that you receive
                                           communication related to your booking from Plumeria Retreat Pawna lake AC
-                                          cottage , please add <a href="mailto: babukale60@gmail.com"
-                                            style="color: #164e6f;"><b>babukale60@gmail.com</b></a> to your contact list
+                                          cottage , please add <a href="mailto: ${ownerEmail}"
+                                            style="color: #164e6f;"><b>${ownerEmail}</b></a> to your contact list
                                           and
                                           address book.</div>
                                       </td>
@@ -1525,11 +1526,15 @@ router.post('/verify/:txnid', async (req, res) => {
 
       // Fetch accommodation details
       const [accommodations] = await pool.execute(
-        `SELECT name, address, latitude, longitude FROM accommodations WHERE id = ?`,
+        `SELECT name, address, latitude, longitude ,owner_id FROM accommodations WHERE id = ?`,
         [bk.accommodation_id]
       );
       const acc = accommodations[0] || {};
-
+      const owner_id=acc.owner_id;
+      const [user] =await pool.execute(
+        `SELECT email FROM users WHERE id = ?`,[owner_id]
+      );
+      const ownerEmail=user[0].email;
       if (!recipientEmail || !isValidEmail(recipientEmail)) {
         console.error('❌ Invalid or missing email, aborting mail send:', recipientEmail);
       } else {
@@ -1553,7 +1558,9 @@ router.post('/verify/:txnid', async (req, res) => {
             accommodationName: acc.name || '',
             accommodationAddress: acc.address || '',
             latitude: acc.latitude || '',
-            longitude: acc.longitude || ''
+            longitude: acc.longitude || '',
+            ownerEmail: ownerEmail || '',
+
           });
           console.log('✅ Confirmation email sent to:', recipientEmail);
         } catch (e) {
@@ -1591,16 +1598,21 @@ router.get('/details/:txnid', async (req, res) => {
 
     // Step 2: Fetch accommodation details
     const [accommodations] = await pool.execute(
-      `SELECT name, address, latitude, longitude FROM accommodations WHERE id = ?`,
+      `SELECT name, address, latitude, longitude ,owner_id FROM accommodations WHERE id = ?`,
       [booking.accommodation_id]
     );
-
     const accommodation = accommodations[0] || {};
+    const owner_id=accommodation.owner_id;
+      const [user] =await pool.execute(
+        `SELECT email FROM users WHERE id = ?`,[owner_id]
+      );
+      const ownerEmail=user[0].email;
 
     // Step 3: Combine and return
     return res.json({
       booking,
-      accommodation
+      accommodation,
+      ownerEmail
     });
 
   } catch (err) {

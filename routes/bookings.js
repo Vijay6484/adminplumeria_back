@@ -1638,5 +1638,45 @@ router.put('/:id/status', async (req, res) => {
     res.status(500).json({ success: false, error: 'Failed to update payment status' });
   }
 });
+// GET /admin/bookings/room-occupancy - Get total rooms booked for a specific date
+router.get('/room-occupancy', async (req, res) => {
+  try {
+    const { check_in ,id} = req.query;
+    
+    // Validate date parameter
+    if (!check_in || !/^\d{4}-\d{2}-\d{2}$/.test(check_in)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Valid check_in date (YYYY-MM-DD) is required'
+      });
+    }
+
+    // Calculate total rooms for the date
+    const [result] = await pool.execute(
+      `SELECT COALESCE(SUM(rooms), 0) AS total_rooms
+       FROM bookings
+       WHERE payment_status = 'success'
+         AND check_in = ?
+         AND check_out > ?
+         AND accommodation_id=?`,
+
+      [check_in, check_in,id]
+    );
+
+    res.json({
+      success: true,
+      date: check_in,
+      total_rooms: result[0].total_rooms
+    });
+
+  } catch (error) {
+    console.error('Error fetching room occupancy:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch room occupancy data',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
 
 module.exports = router;

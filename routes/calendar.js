@@ -44,8 +44,9 @@ router.get('/blocked-dates', async (req, res) => {
   }
 });
 
-router.get('/blocked-dates/id', async (req, res) => {
-  const { accommodation_id } = req.query;
+
+router.get('/blocked-dates/:id', async (req, res) => {
+  const  accommodation_id  = req.params.id;
   console.log('Fetching blocked dates for accommodation_id:', accommodation_id);
   try {
     let query = `

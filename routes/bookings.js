@@ -666,6 +666,36 @@ router.post('/offline', async (req, res) => {
     }
 
     await connection.commit();
+    const formatDate = (dateStr) => {
+      const d = new Date(dateStr);
+      return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+    };
+
+    const remainingAmount = booking.total_amount - booking.advance_amount;
+
+    await sendPdfEmail({
+      email: booking.guest_email,
+      name: booking.guest_name,
+      BookingId: booking.id,
+      BookingDate: formatDate(booking.created_at),
+      CheckinDate: formatDate(booking.check_in),
+      CheckoutDate: formatDate(booking.check_out),
+      totalPrice: booking.total_amount,
+      advancePayable: booking.advance_amount,
+      remainingAmount: remainingAmount.toFixed(2),
+      mobile: booking.guest_phone,
+      totalPerson: booking.adults + booking.children,
+      adult: booking.adults,
+      child: booking.children,
+      vegCount: booking.food_veg,
+      nonvegCount: booking.food_nonveg,
+      joinCount: booking.food_jain,
+      accommodationName: booking.accommodation_name || '',
+      accommodationAddress: booking.accommodation_address || '',
+      latitude: booking.latitude || '',
+      longitude: booking.longitude || '',
+      ownerEmail: ownerEmail || ''
+    });
 
     res.json({
       success: true,

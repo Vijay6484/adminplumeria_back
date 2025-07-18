@@ -1509,17 +1509,17 @@ async function sendPdfEmail(params) {
   // ... (rest of the HTML template remains the same) ...
 
   const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
+    host: 'mail.pawanaicamping.com',
     secure: true,
     port: 465,
     auth: {
-      user: process.env.EMAIL_USER || "chandan56348@gmail.com",
-      pass: process.env.EMAIL_PASS || "mshnxdgdedgdacyy"
+      user: process.env.EMAIL_USER || "admin@pawanaicamping.com",
+      pass: process.env.EMAIL_PASS || "19XkY4BJLTG^"
     }
   });
 
   const mailOptions = {
-    from: process.env.EMAIL_FROM || "Plumeria Retreat <chandan56348@gmail.com>",
+    from: process.env.EMAIL_FROM || "Plumeria Retreat <admin@pawanaicamping.com>",
     to: email.trim(),
     subject: 'Resort Camping Booking',
     html: html, // Make sure HTML variable is defined

@@ -32,7 +32,7 @@
 
 //       const [result] = await pool.execute(
 
-//         `UPDATE bookings 
+//         `UPDATE bookings
 
 //          SET payment_status = 'expired'
 
@@ -56,9 +56,6 @@
 
 // bookingCleanup();
 
-
-
-
 // // GET /admin/bookings - fetch all bookings
 
 // router.get('/', async (req, res) => {
@@ -71,7 +68,7 @@
 
 //     const [bookings] = await pool.execute(`
 
-//       SELECT 
+//       SELECT
 
 //         b.id,
 
@@ -113,13 +110,7 @@
 
 //     `, [parseInt(limit), parseInt(offset)]);
 
-
-
-
 //     const [[{ count }]] = await pool.execute('SELECT COUNT(*) as count FROM bookings');
-
-
-
 
 //     res.json({
 
@@ -159,9 +150,6 @@
 
 // });
 
-
-
-
 // // POST /admin/bookings - create booking
 
 // router.post('/', async (req, res) => {
@@ -184,24 +172,15 @@
 
 //     } = req.body;
 
-
-
-
 //     const requiredFields = ['guest_name', 'accommodation_id', 'package_id', 'check_in', 'check_out', 'total_amount'];
 
 //     const missingFields = requiredFields.filter(field => !req.body[field]);
-
-
-
 
 //     if (missingFields.length > 0) {
 
 //       return res.status(400).json({ success: false, error: `Missing required fields: ${missingFields.join(', ')}` });
 
 //     }
-
-
-
 
 //     const totalGuests = adults + children;
 
@@ -213,17 +192,11 @@
 
 //     }
 
-
-
-
 //     if (new Date(check_in) >= new Date(check_out)) {
 
 //       return res.status(400).json({ success: false, error: 'Check-out must be after check-in' });
 
 //     }
-
-
-
 
 //     if (total_amount <= 0 || advance_amount < 0) {
 
@@ -231,24 +204,15 @@
 
 //     }
 
-
-
-
 //     if (adults < 1 || rooms < 1) {
 
 //       return res.status(400).json({ success: false, error: 'Must have at least 1 adult and 1 room' });
 
 //     }
 
-
-
-
 //     const payment_status = 'pending';
 
 //     const payment_txn_id = `BOOK-${uuidv4()}`;
-
-
-
 
 //     const [result] = await connection.execute(`
 
@@ -256,7 +220,7 @@
 
 //         guest_name, guest_email, guest_phone, accommodation_id, package_id,
 
-//         check_in, check_out, adults, children, rooms, food_veg, food_nonveg, 
+//         check_in, check_out, adults, children, rooms, food_veg, food_nonveg,
 
 //         food_jain, total_amount, advance_amount, payment_status, payment_txn_id, created_at
 
@@ -274,18 +238,9 @@
 
 //     );
 
-
-
-
 //     await connection.commit();
 
-
-
-
 //     res.json({ success: true, data: { booking_id: result.insertId, payment_txn_id, payment_status } });
-
-
-
 
 //   } catch (error) {
 
@@ -311,9 +266,6 @@
 
 // });
 
-
-
-
 // // POST /admin/bookings/payments/payu - Initiate PayU payment
 
 // router.post('/payments/payu', async (req, res) => {
@@ -322,26 +274,17 @@
 
 //     const { amount, firstname, email, phone, booking_id, productinfo } = req.body;
 
-
-
-
 //     if (!amount || !firstname || !email || !booking_id || !productinfo) {
 
 //       return res.status(400).json({ success: false, error: 'Missing required payment parameters' });
 
 //     }
 
-
-
-
 //     if (isNaN(amount) || amount <= 0) {
 
 //       return res.status(400).json({ success: false, error: 'Invalid amount' });
 
 //     }
-
-
-
 
 //     const cleanPhone = phone ? phone.toString().replace(/\D/g, '') : '';
 
@@ -350,9 +293,6 @@
 //       return res.status(400).json({ success: false, error: 'Valid 10-digit phone required' });
 
 //     }
-
-
-
 
 //     const [booking] = await pool.execute(
 
@@ -366,9 +306,6 @@
 
 //     }
 
-
-
-
 //     const txnid = `PAYU-${uuidv4()}`;
 
 //     const udf1 = '', udf2 = '', udf3 = '', udf4 = '', udf5 = '';
@@ -379,20 +316,11 @@
 
 //     const truncatedEmail = email.substring(0, 50);
 
-
-
-
 //     const hashString = `${payu_key}|${txnid}|${amount}|${truncatedProductinfo}|${truncatedFirstname}|${truncatedEmail}|${udf1}|${udf2}|${udf3}|${udf4}|${udf5}||||||${payu_salt}`;
 
 //     const hash = crypto.createHash('sha512').update(hashString).digest('hex');
 
-
-
-
 //     await pool.execute('UPDATE bookings SET payment_txn_id = ?, payment_status = "pending" WHERE id = ?', [txnid, booking_id]);
-
-
-
 
 //     const paymentData = {
 
@@ -420,9 +348,6 @@
 
 //     };
 
-
-
-
 //     res.json({
 
 //       success: true,
@@ -434,9 +359,6 @@
 //       payment_data: paymentData
 
 //     });
-
-
-
 
 //   } catch (error) {
 
@@ -456,23 +378,17 @@
 
 //     const { force_payu } = req.query; // Add query parameter to force PayU check
 
-
-
-
 //     if (!txnid) {
 
-//       return res.status(400).json({ 
+//       return res.status(400).json({
 
-//         success: false, 
+//         success: false,
 
-//         error: 'Transaction ID is required' 
+//         error: 'Transaction ID is required'
 
 //       });
 
 //     }
-
-
-
 
 //     // Get booking from database
 
@@ -484,39 +400,27 @@
 
 //     );
 
-
-
-
 //     if (bookings.length === 0) {
 
-//       return res.status(404).json({ 
+//       return res.status(404).json({
 
-//         success: false, 
+//         success: false,
 
-//         error: 'Transaction not found' 
+//         error: 'Transaction not found'
 
 //       });
 
 //     }
 
-
-
-
 //     const booking = bookings[0];
-
-
-
 
 //     // If force_payu is true, OR status is failed/pending, check with PayU
 
-//     const shouldCheckPayU = force_payu === 'true' || 
+//     const shouldCheckPayU = force_payu === 'true' ||
 
-//                            booking.payment_status === 'failed' || 
+//                            booking.payment_status === 'failed' ||
 
 //                            booking.payment_status === 'pending';
-
-
-
 
 //     if (!shouldCheckPayU && booking.payment_status === 'success') {
 
@@ -544,9 +448,6 @@
 
 //     }
 
-
-
-
 //     // Check with PayU
 
 //     try {
@@ -555,27 +456,15 @@
 
 //       const payuClient = new PayU({ key: payu_key, salt: payu_salt });
 
-
-
-
 //       console.log(`Force checking payment status for txnid: ${txnid}`);
 
-
-
-
 //       const verifiedData = await payuClient.verifyPayment(txnid);
-
-
-
 
 //       if (!verifiedData || !verifiedData.transaction_details || !verifiedData.transaction_details[txnid]) {
 
 //         console.log('PayU verification returned no data for:', txnid);
 
-
-
-
-//         // If no data from PayU, but customer says payment debited, 
+//         // If no data from PayU, but customer says payment debited,
 
 //         // return database status with warning
 
@@ -605,15 +494,9 @@
 
 //       }
 
-
-
-
 //       const transaction = verifiedData.transaction_details[txnid];
 
 //       console.log('PayU transaction details:', transaction);
-
-
-
 
 //       // Determine final status
 
@@ -629,9 +512,6 @@
 
 //       }
 
-
-
-
 //       // Update database if status changed
 
 //       if (finalStatus !== booking.payment_status) {
@@ -644,15 +524,9 @@
 
 //         );
 
-
-
-
 //         console.log(`Updated booking ${booking.id} status from ${booking.payment_status} to ${finalStatus}`);
 
 //       }
-
-
-
 
 //       return res.json({
 
@@ -686,15 +560,9 @@
 
 //       });
 
-
-
-
 //     } catch (payuError) {
 
 //       console.error('PayU verification error:', payuError);
-
-
-
 
 //       // Return database status with error info
 
@@ -725,9 +593,6 @@
 //       });
 
 //     }
-
-
-
 
 //   } catch (error) {
 
@@ -761,22 +626,13 @@
 
 //   }
 
-
-
-
 //   try {
 
 //     const PayU = require("payu-websdk");
 
 //     const payuClient = new PayU({ key: payu_key, salt: payu_salt });
 
-
-
-
 //     console.log(`Verifying payment for txnid: ${txnid}`);
-
-
-
 
 //     let verifiedData;
 
@@ -794,9 +650,6 @@
 
 //     }
 
-
-
-
 //     if (!verifiedData || !verifiedData.transaction_details || !verifiedData.transaction_details[txnid]) {
 
 //       console.error('Payment verification failed: Missing transaction details', verifiedData);
@@ -805,15 +658,9 @@
 
 //     }
 
-
-
-
 //     const transaction = verifiedData.transaction_details[txnid];
 
 //     console.log('Payment verification response:', transaction);
-
-
-
 
 //     if (transaction.status === "success") {
 
@@ -825,13 +672,7 @@
 
 //     }
 
-
-
-
 //     return res.redirect(`${FRONTEND_BASE_URL}/payment/${transaction.status}/${transaction.txnid}`);
-
-
-
 
 //   } catch (error) {
 
@@ -853,17 +694,11 @@
 
 //     const { payment_status } = req.body;
 
-
-
-
 //     if (!payment_status) {
 
 //       return res.status(400).json({ success: false, error: 'Payment status is required' });
 
 //     }
-
-
-
 
 //     const validStatuses = ['pending', 'success', 'failed', 'expired'];
 
@@ -873,13 +708,7 @@
 
 //     }
 
-
-
-
 //     const [result] = await pool.execute('UPDATE bookings SET payment_status = ? WHERE id = ?', [payment_status, id]);
-
-
-
 
 //     if (result.affectedRows === 0) {
 
@@ -887,13 +716,7 @@
 
 //     }
 
-
-
-
 //     res.json({ success: true, message: 'Payment status updated' });
-
-
-
 
 //   } catch (error) {
 
@@ -905,65 +728,48 @@
 
 // });
 
-
-
-
 // module.exports = router;
 
-
-
-
-
-
-
-const express = require('express');
+const express = require("express");
 
 const router = express.Router();
 
-const pool = require('../dbcon');
+const pool = require("../dbcon");
 
-const crypto = require('crypto');
+const crypto = require("crypto");
 
 const PayU = require("payu-websdk");
 
-const nodemailer = require('nodemailer');
+const nodemailer = require("nodemailer");
 
-const puppeteer = require('puppeteer');
+const puppeteer = require("puppeteer");
 
-const { format } = require('date-fns');
+const { format } = require("date-fns");
 
-const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4 } = require("uuid");
 
-require('dotenv').config();
+require("dotenv").config();
 
+const payu_key = process.env.PAYU_MERCHANT_KEY || rFrruE9E; //process.env.PAYU_MERCHANT_KEY;
 
-
-
-const payu_key =process.env.PAYU_MERCHANT_KEY ||rFrruE9E; //process.env.PAYU_MERCHANT_KEY;
-
-const payu_salt =process.env.PAYU_MERCHANT_SALT ||DvYeVsKfYU;
+const payu_salt = process.env.PAYU_MERCHANT_SALT || DvYeVsKfYU;
 
 // "MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCS2TYPoivPA9qOZW+c+evpYJGF9I6Ti/FVL3+3AyEImmWr9kd8NXRnWkRw79JmzJ+wUL1HkuloTCEvOcnoN16sd2bQ3n4j2WRca0QkHbx4JougH3NKfUkVIo2n21xlaxu9xiIjMZF1OQbNhMJfid/vP7FSaUhLdN46aWvyjxohK30IRvGnXbOH3666UtJXDSvebtrClLfUdX/9zOXLUU45vncGyCtylNiADLW5dMR5EkB8vQwpFXbQ+79LG9RRSDD8yCIJbd8Z4EB5gt1rQwdiUeV2T45ncSETFNKudUtwt/SxffzQPH5qDiyU2D35Cc5lUQQmELjK9aLYI/ge6ss1AgMBAAECggEAFxolc2GttzBxxIeoPr+hsdIvqq2N9Z/lPGPP2ZScMIyLtLk2x09oi+7rSAIurV4BPF2DXZx67F3XtaSHg2kck5DoQ7FREmY7r/9vFah480ULH8p62ovpwLGyK+dqeokWcO1YBwXgDptFWvVJF/sql+rDBIZMKZTN9k4J/buuHmwKQEqOowUBQWP1oo0Sgrnv48nQqlPfGatxq7U4w4hRLf3l6UR0c/mPHVb00UabBaZzZ9B/jMMasHDtLKYQ/69VtCo2QVm9Kykh3bRHKjiAF5f606gHiewILi3jj+lcnUrcDL1pFkBqskrJ8NibHfdJkaT1w3W1n463cLfCCntD2QKBgQC67h1lGo3avoB4GdoGMzqsDg9Bub0FpI2/lnL5oeFgygRvYRBb78E3fUKuYIWcUjiZaTgukIsMtZKPEpv90tJXua5dQEOOip9D4SQddHoT7MNToFFKJ5pXzHonc8dSMQYLV3LeR1V/9inJhrRPjedhr1jdJBMLZIAOe/mZBDh8CQKBgQDJG7zPL0sua6WkX6lLX0JydmEjbOFedeL2olY3pm8Vj0iC1ejUzsYrRwHEc1YUr2bO0NQ0uQ64dLhl+AXu2HwCWu7aRKMas0lg4uFemcmerqUMd1ozJJfI3fhjfSaFXwSqn5LcclUCXt/LOx49cxN9HmPHYNpyvV+P17gchIG4zQKBgCL95+rBKcTE3G+fBz0Z4eXLS/fVuRiRUSeIFkW8k9/2cRYYaWOMYfLtM8pIrzov+gBdvfKZhC4A30qBBUpiaJWbYJR8LylDscSXJJeO8jtAmt/QpubmuvGsiUFRXwJ3wtXkrNAHMm4dunzLBn3N5n5WwJ/E3PvI+F+9vV9zds9hAoGAdz5eHo8RSe4EIkmibRGHqaztff7SRpspv0mUS50A4sy5lvJVAtG0CPcqYhxtHwi9scV6/eP4iYCT0cpVYkC0jwTx+TOXbn599Nex/9C6Dr/JF3IxZn+9DBopbHxJee1ULANAJjwYkbZFhhCAprj0Bk0dppuUC1KkNfsXrLkY3cUCgYAYdRxY9KFg97jhRyD25LKTHbLyp5+rd53UxxNM5GGaxwHCe0FPj9jTD9x6NoGIg1cLDeaTIy20a4cDJx5v50yrMFvnbIMCcQ4nm71GfXUtO53O/k4ptTk9jVlM8ymJ/kK0956OODrrCTz/4Sur4+11gkd1LAw+MfKHZ8gtWrswPQ=="; //process.env.PAYU_MERCHANT_SALT;
 
-const PAYU_BASE_URL = process.env.PAYU_BASE_URL ||'https://secure.payu.in'; // process.env.PAYU_BASE_URL||'https://secure.payu.in';
+const PAYU_BASE_URL = process.env.PAYU_BASE_URL || "https://secure.payu.in"; // process.env.PAYU_BASE_URL||'https://secure.payu.in';
 
-const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'https://plumeriaretreat.vercel.app';
+const FRONTEND_BASE_URL =
+  process.env.FRONTEND_BASE_URL || "https://plumeriaretreat.vercel.app";
 
-const ADMIN_BASE_URL = process.env.ADMIN_BASE_URL || 'https://adminplumeria-back.onrender.com';
-
-
-
+const ADMIN_BASE_URL =
+  process.env.ADMIN_BASE_URL || "https://adminplumeria-back.onrender.com";
 
 // BOOKING CLEANUP JOB
 
 const bookingCleanup = () => {
-
   setInterval(async () => {
-
     try {
-
       const [result] = await pool.execute(
-
         `UPDATE bookings 
 
          SET payment_status = 'expired'
@@ -971,37 +777,27 @@ const bookingCleanup = () => {
          WHERE payment_status = 'pending'
 
          AND created_at < NOW() - INTERVAL 1 HOUR`
-
       );
 
       console.log(`Marked ${result.affectedRows} bookings as expired`);
-
     } catch (error) {
-
-      console.error('Booking cleanup error:', error);
-
+      console.error("Booking cleanup error:", error);
     }
-
   }, 30 * 60 * 1000); // every 30 minutes
-
 };
 
 bookingCleanup();
 
-
-
-
 // GET /admin/bookings - fetch all bookings
 
-router.get('/', async (req, res) => {
-
+router.get("/", async (req, res) => {
   try {
-
     const { page = 1, limit = 20 } = req.query;
 
     const offset = (page - 1) * limit;
 
-    const [bookings] = await pool.execute(`
+    const [bookings] = await pool.execute(
+      `
 
       SELECT 
 
@@ -1012,6 +808,9 @@ router.get('/', async (req, res) => {
         b.guest_email,
 
         b.guest_phone,
+        b.food_veg,
+        b.food_nonveg,
+        b.food_jain,
 
         a.name AS accommodation_name,
 
@@ -1051,148 +850,139 @@ router.get('/', async (req, res) => {
 
       LIMIT ? OFFSET ?
 
-    `, [parseInt(limit), parseInt(offset)]);
+    `,
+      [parseInt(limit), parseInt(offset)]
+    );
 
-
-
-
-    const [[{ count }]] = await pool.execute('SELECT COUNT(*) as count FROM bookings');
-
-
-
+    const [[{ count }]] = await pool.execute(
+      "SELECT COUNT(*) as count FROM bookings"
+    );
 
     res.json({
-
       success: true,
 
       data: bookings,
 
       pagination: {
-
         total: count,
 
         page: parseInt(page),
 
         limit: parseInt(limit),
 
-        totalPages: Math.ceil(count / limit)
-
-      }
-
+        totalPages: Math.ceil(count / limit),
+      },
     });
-
   } catch (error) {
-
-    console.error('Error fetching bookings:', error);
+    console.error("Error fetching bookings:", error);
 
     res.status(500).json({
-
       success: false,
 
-      error: 'Failed to fetch bookings',
+      error: "Failed to fetch bookings",
 
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
-
   }
-
 });
-
-
-
 
 // POST /admin/bookings - create booking
 
-router.post('/', async (req, res) => {
-
+router.post("/", async (req, res) => {
   const connection = await pool.getConnection();
 
   try {
-
     await connection.beginTransaction();
 
     const {
+      guest_name,
+      guest_email,
+      guest_phone,
+      accommodation_id,
+      package_id,
 
-      guest_name, guest_email, guest_phone, accommodation_id, package_id,
+      check_in,
+      check_out,
+      adults = 1,
+      children = 0,
+      rooms = 1,
 
-      check_in, check_out, adults = 1, children = 0, rooms = 1,
+      food_veg = 0,
+      food_nonveg = 0,
+      food_jain = 0,
+      total_amount,
 
-      food_veg = 0, food_nonveg = 0, food_jain = 0, total_amount,
-
-      advance_amount = 0, payment_method = 'payu'
-
+      advance_amount = 0,
+      payment_method = "payu",
     } = req.body;
 
     console.log(req.body);
 
-    const requiredFields = ['guest_name', 'accommodation_id', 'package_id', 'check_in', 'check_out', 'total_amount'];
+    const requiredFields = [
+      "guest_name",
+      "accommodation_id",
+      "package_id",
+      "check_in",
+      "check_out",
+      "total_amount",
+    ];
 
     const missingFields = requiredFields.filter(
-
-      field => req.body[field] === undefined || req.body[field] === null
-
+      (field) => req.body[field] === undefined || req.body[field] === null
     );
 
     console.log(missingFields);
 
     if (missingFields.length > 0) {
-
-      return res.status(400).json({ success: false, error: `Missing required fields: ${missingFields.join(', ')}` });
-
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: `Missing required fields: ${missingFields.join(", ")}`,
+        });
     }
-
-
-
 
     const totalGuests = adults + children;
 
     const totalFood = food_veg + food_nonveg + food_jain;
 
     if (totalFood !== totalGuests) {
-
-      return res.status(400).json({ success: false, error: 'Food preferences must match total guests' });
-
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: "Food preferences must match total guests",
+        });
     }
-
-
-
 
     if (new Date(check_in) >= new Date(check_out)) {
-
-      return res.status(400).json({ success: false, error: 'Check-out must be after check-in' });
-
+      return res
+        .status(400)
+        .json({ success: false, error: "Check-out must be after check-in" });
     }
-
-
-
 
     if (total_amount <= 0 || advance_amount < 0) {
-
-      return res.status(400).json({ success: false, error: 'Invalid amount values' });
-
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid amount values" });
     }
-
-
-
 
     if (adults < 1 || rooms < 1) {
-
-      return res.status(400).json({ success: false, error: 'Must have at least 1 adult and 1 room' });
-
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: "Must have at least 1 adult and 1 room",
+        });
     }
 
-
-
-
-    const payment_status = 'pending';
+    const payment_status = "pending";
 
     const payment_txn_id = `BOOK-${uuidv4()}`;
 
-
-
-
-    const [result] = await connection.execute(`
+    const [result] = await connection.execute(
+      `
 
       INSERT INTO bookings (
 
@@ -1205,103 +995,100 @@ router.post('/', async (req, res) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 
       [
+        guest_name,
+        guest_email,
+        guest_phone || null,
+        accommodation_id,
+        package_id,
 
-        guest_name, guest_email, guest_phone || null, accommodation_id, package_id,
+        check_in,
+        check_out,
+        adults,
+        children,
+        rooms,
+        food_veg,
+        food_nonveg,
 
-        check_in, check_out, adults, children, rooms, food_veg, food_nonveg,
-
-        food_jain, total_amount, advance_amount, payment_status, payment_txn_id, new Date()
-
+        food_jain,
+        total_amount,
+        advance_amount,
+        payment_status,
+        payment_txn_id,
+        new Date(),
       ]
-
     );
-
-
-
 
     await connection.commit();
 
-
-
-
-    res.json({ success: true, data: { booking_id: result.insertId, payment_txn_id, payment_status } });
-
-
-
-
+    res.json({
+      success: true,
+      data: { booking_id: result.insertId, payment_txn_id, payment_status },
+    });
   } catch (error) {
-
     await connection.rollback();
 
-    console.error('Error creating booking:', error);
+    console.error("Error creating booking:", error);
 
     res.status(500).json({
-
       success: false,
 
-      error: 'Failed to create booking',
+      error: "Failed to create booking",
 
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
-
   } finally {
-
     connection.release();
-
   }
-
 });
 
-
-
-
-router.post('/offline', async (req, res) => {
-
+router.post("/offline", async (req, res) => {
   const connection = await pool.getConnection();
 
-
-
-
   try {
-
     await connection.beginTransaction();
 
-
-
-
     const {
+      guest_name,
+      guest_email,
+      guest_phone,
+      accommodation_id,
 
-      guest_name, guest_email, guest_phone, accommodation_id,
+      check_in,
+      check_out,
+      adults = 1,
+      children = 0,
+      rooms = 1,
 
-      check_in, check_out, adults = 1, children = 0, rooms = 1,
+      food_veg = 0,
+      food_nonveg = 0,
+      food_jain = 0,
 
-      food_veg = 0, food_nonveg = 0, food_jain = 0,
-
-      total_amount, advance_amount = 0
-
+      total_amount,
+      advance_amount = 0,
     } = req.body;
-
-
-
 
     // Validate required fields
 
-    const requiredFields = ['guest_name', 'guest_email', 'accommodation_id', 'check_in', 'check_out', 'total_amount'];
+    const requiredFields = [
+      "guest_name",
+      "guest_email",
+      "accommodation_id",
+      "check_in",
+      "check_out",
+      "total_amount",
+    ];
 
-    const missingFields = requiredFields.filter(field => !req.body[field]);
-
-
-
+    const missingFields = requiredFields.filter((field) => !req.body[field]);
 
     if (missingFields.length > 0) {
-
-      return res.status(400).json({ success: false, error: `Missing required fields: ${missingFields.join(', ')}` });
-
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: `Missing required fields: ${missingFields.join(", ")}`,
+        });
     }
-
-
-
 
     // Validate food count vs guest count
 
@@ -1309,59 +1096,48 @@ router.post('/offline', async (req, res) => {
 
     const totalFood = food_veg + food_nonveg + food_jain;
 
-
-
-
     if (totalFood > 0 && totalFood !== totalGuests) {
-
-      return res.status(400).json({ success: false, error: 'Food preferences must match total guests' });
-
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: "Food preferences must match total guests",
+        });
     }
-
-
-
 
     // Validate check-in/out dates
 
     if (new Date(check_in) >= new Date(check_out)) {
-
-      return res.status(400).json({ success: false, error: 'Check-out must be after check-in' });
-
+      return res
+        .status(400)
+        .json({ success: false, error: "Check-out must be after check-in" });
     }
-
-
-
 
     // Validate positive values
 
     if (total_amount <= 0 || advance_amount < 0) {
-
-      return res.status(400).json({ success: false, error: 'Invalid amount values' });
-
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid amount values" });
     }
-
-
-
 
     if (adults < 1 || rooms < 1) {
-
-      return res.status(400).json({ success: false, error: 'Must have at least 1 adult and 1 room' });
-
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: "Must have at least 1 adult and 1 room",
+        });
     }
 
-
-
-
-    const payment_status = 'success';
+    const payment_status = "success";
 
     const payment_txn_id = `BOOK-${uuidv4()}`;
 
-
-
-
     // Insert into bookings
 
-    const [result] = await connection.execute(`
+    const [result] = await connection.execute(
+      `
 
       INSERT INTO bookings (
 
@@ -1374,28 +1150,34 @@ router.post('/offline', async (req, res) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 
       [
+        guest_name,
+        guest_email,
+        guest_phone || null,
+        accommodation_id,
 
-        guest_name, guest_email, guest_phone || null, accommodation_id,
+        check_in,
+        check_out,
+        adults,
+        children,
+        rooms,
+        food_veg,
+        food_nonveg,
 
-        check_in, check_out, adults, children, rooms, food_veg, food_nonveg,
-
-        food_jain, total_amount, advance_amount, payment_status, payment_txn_id, new Date()
-
+        food_jain,
+        total_amount,
+        advance_amount,
+        payment_status,
+        payment_txn_id,
+        new Date(),
       ]
-
     );
-
-
-
 
     const booking_id = result.insertId;
 
-
-
-
     // Fetch booking details with accommodation
 
-    const [[booking]] = await connection.execute(`
+    const [[booking]] = await connection.execute(
+      `
 
       SELECT b.*, a.name AS accommodation_name, a.address AS accommodation_address,
 
@@ -1405,55 +1187,40 @@ router.post('/offline', async (req, res) => {
 
       JOIN accommodations a ON b.accommodation_id = a.id
 
-      WHERE b.id = ?`, [booking_id]
-
+      WHERE b.id = ?`,
+      [booking_id]
     );
 
-
-
-
     let ownerEmail = null;
-
-
-
 
     // Get owner email using owner_id
 
     if (booking.owner_id) {
-
-      const [[user]] = await connection.execute(`
+      const [[user]] = await connection.execute(
+        `
 
         SELECT email FROM users WHERE id = ?
 
-      `, [booking.owner_id]);
+      `,
+        [booking.owner_id]
+      );
 
       ownerEmail = user?.email || null;
-
     }
-
-
-
 
     await connection.commit();
 
     const formatDate = (dateStr) => {
-
       const d = new Date(dateStr);
 
-      return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getFullYear()}`;
-
+      return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1)
+        .toString()
+        .padStart(2, "0")}/${d.getFullYear()}`;
     };
-
-
-
 
     const remainingAmount = booking.total_amount - booking.advance_amount;
 
-
-
-
     await sendPdfEmail({
-
       email: booking.guest_email,
 
       name: booking.guest_name,
@@ -1486,132 +1253,87 @@ router.post('/offline', async (req, res) => {
 
       joinCount: booking.food_jain,
 
-      accommodationName: booking.accommodation_name || '',
+      accommodationName: booking.accommodation_name || "",
 
-      accommodationAddress: booking.accommodation_address || '',
+      accommodationAddress: booking.accommodation_address || "",
 
-      latitude: booking.latitude || '',
+      latitude: booking.latitude || "",
 
-      longitude: booking.longitude || '',
+      longitude: booking.longitude || "",
 
-      ownerEmail: ownerEmail || ''
-
+      ownerEmail: ownerEmail || "",
     });
 
-
-
-
     res.json({
-
       success: true,
 
       data: {
-
         booking,
 
-        owner_email: ownerEmail
-
-      }
-
+        owner_email: ownerEmail,
+      },
     });
-
-
-
-
   } catch (error) {
-
     await connection.rollback();
 
-    console.error('Error creating booking:', error);
+    console.error("Error creating booking:", error);
 
     res.status(500).json({
-
       success: false,
 
-      error: 'Failed to create booking',
+      error: "Failed to create booking",
 
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
-
   } finally {
-
     connection.release();
-
   }
-
 });
-
-
-
-
-
-
-
-
-
-
-
-
 
 // POST /admin/bookings/payments/payu - Initiate PayU payment (UPDATED)
 
-router.post('/payments/payu', async (req, res) => {
-
+router.post("/payments/payu", async (req, res) => {
   try {
-
-    const { amount, firstname, email, phone, booking_id, productinfo } = req.body;
-
-
-
+    const { amount, firstname, email, phone, booking_id, productinfo } =
+      req.body;
 
     if (!amount || !firstname || !email || !booking_id || !productinfo) {
-
-      return res.status(400).json({ success: false, error: 'Missing required payment parameters' });
-
+      return res
+        .status(400)
+        .json({ success: false, error: "Missing required payment parameters" });
     }
-
-
-
 
     if (isNaN(amount) || amount <= 0) {
-
-      return res.status(400).json({ success: false, error: 'Invalid amount' });
-
+      return res.status(400).json({ success: false, error: "Invalid amount" });
     }
 
-
-
-
-    const cleanPhone = phone ? phone.toString().replace(/\D/g, '') : '';
+    const cleanPhone = phone ? phone.toString().replace(/\D/g, "") : "";
 
     if (cleanPhone.length < 10) {
-
-      return res.status(400).json({ success: false, error: 'Valid 10-digit phone required' });
-
+      return res
+        .status(400)
+        .json({ success: false, error: "Valid 10-digit phone required" });
     }
 
-
-
-
     const [booking] = await pool.execute(
-
-      'SELECT id FROM bookings WHERE id = ? AND payment_status = "pending"', [booking_id]
-
+      'SELECT id FROM bookings WHERE id = ? AND payment_status = "pending"',
+      [booking_id]
     );
 
     if (booking.length === 0) {
-
-      return res.status(404).json({ success: false, error: 'Pending booking not found' });
-
+      return res
+        .status(404)
+        .json({ success: false, error: "Pending booking not found" });
     }
-
-
-
 
     const txnid = `PAYU-${uuidv4()}`;
 
-    const udf1 = '', udf2 = '', udf3 = '', udf4 = '', udf5 = '';
+    const udf1 = "",
+      udf2 = "",
+      udf3 = "",
+      udf4 = "",
+      udf5 = "";
 
     const truncatedProductinfo = productinfo.substring(0, 100);
 
@@ -1619,25 +1341,18 @@ router.post('/payments/payu', async (req, res) => {
 
     const truncatedEmail = email.substring(0, 50);
 
-
-
-
     const hashString = `${payu_key}|${txnid}|${amount}|${truncatedProductinfo}|${truncatedFirstname}|${truncatedEmail}|${udf1}|${udf2}|${udf3}|${udf4}|${udf5}||||||${payu_salt}`;
 
-    const hash = crypto.createHash('sha512').update(hashString).digest('hex');
+    const hash = crypto.createHash("sha512").update(hashString).digest("hex");
 
-
-
-
-    await pool.execute('UPDATE bookings SET payment_txn_id = ?, payment_status = "pending" WHERE id = ?', [txnid, booking_id]);
-
-
-
+    await pool.execute(
+      'UPDATE bookings SET payment_txn_id = ?, payment_status = "pending" WHERE id = ?',
+      [txnid, booking_id]
+    );
 
     // POINT TO BACKEND VERIFICATION ENDPOINT (UPDATED)
 
     const paymentData = {
-
       key: payu_key,
 
       txnid,
@@ -1658,40 +1373,26 @@ router.post('/payments/payu', async (req, res) => {
 
       hash,
 
-      currency: "INR"
-
+      currency: "INR",
     };
 
-
-
-
     res.json({
-
       success: true,
 
       message: "Payment initiated",
 
       payu_url: `${PAYU_BASE_URL}/_payment`,
 
-      payment_data: paymentData
-
+      payment_data: paymentData,
     });
-
-
-
-
   } catch (error) {
+    console.error("PayU initiation error:", error);
 
-    console.error('PayU initiation error:', error);
-
-    res.status(500).json({ success: false, error: 'Payment initiation failed' });
-
+    res
+      .status(500)
+      .json({ success: false, error: "Payment initiation failed" });
   }
-
 });
-
-
-
 
 // // GET /payment-status/:txnid - Check payment status
 
@@ -1703,23 +1404,17 @@ router.post('/payments/payu', async (req, res) => {
 
 //     const { force_payu } = req.query;
 
-
-
-
 //     if (!txnid) {
 
-//       return res.status(400).json({ 
+//       return res.status(400).json({
 
-//         success: false, 
+//         success: false,
 
-//         error: 'Transaction ID is required' 
+//         error: 'Transaction ID is required'
 
 //       });
 
 //     }
-
-
-
 
 //     const [bookings] = await pool.execute(
 
@@ -1729,37 +1424,25 @@ router.post('/payments/payu', async (req, res) => {
 
 //     );
 
-
-
-
 //     if (bookings.length === 0) {
 
-//       return res.status(404).json({ 
+//       return res.status(404).json({
 
-//         success: false, 
+//         success: false,
 
-//         error: 'Transaction not found' 
+//         error: 'Transaction not found'
 
 //       });
 
 //     }
 
-
-
-
 //     const booking = bookings[0];
 
+//     const shouldCheckPayU = force_payu === 'true' ||
 
-
-
-//     const shouldCheckPayU = force_payu === 'true' || 
-
-//                            booking.payment_status === 'failed' || 
+//                            booking.payment_status === 'failed' ||
 
 //                            booking.payment_status === 'pending';
-
-
-
 
 //     if (!shouldCheckPayU && booking.payment_status === 'success') {
 
@@ -1787,17 +1470,11 @@ router.post('/payments/payu', async (req, res) => {
 
 //     }
 
-
-
-
 //     try {
 
 //       const payuClient = new PayU({ key: payu_key, salt: payu_salt });
 
 //       const verifiedData = await payuClient.verifyPayment(txnid);
-
-
-
 
 //       if (!verifiedData || !verifiedData.transaction_details || !verifiedData.transaction_details[txnid]) {
 
@@ -1827,9 +1504,6 @@ router.post('/payments/payu', async (req, res) => {
 
 //       }
 
-
-
-
 //       const transaction = verifiedData.transaction_details[txnid];
 
 //       let finalStatus = 'pending';
@@ -1844,9 +1518,6 @@ router.post('/payments/payu', async (req, res) => {
 
 //       }
 
-
-
-
 //       if (finalStatus !== booking.payment_status) {
 
 //         await pool.execute(
@@ -1858,9 +1529,6 @@ router.post('/payments/payu', async (req, res) => {
 //         );
 
 //       }
-
-
-
 
 //       return res.json({
 
@@ -1894,9 +1562,6 @@ router.post('/payments/payu', async (req, res) => {
 
 //       });
 
-
-
-
 //     } catch (payuError) {
 
 //       return res.json({
@@ -1927,9 +1592,6 @@ router.post('/payments/payu', async (req, res) => {
 
 //     }
 
-
-
-
 //   } catch (error) {
 
 //     console.error('Error checking payment status:', error);
@@ -1948,17 +1610,10 @@ router.post('/payments/payu', async (req, res) => {
 
 // });
 
-
-
-
 // POST /verify/:txnid - Handle PayU callback (UPDATED)
 
 async function sendPdfEmail(params) {
-
   const {
-
-
-
     email,
 
     name,
@@ -1999,31 +1654,20 @@ async function sendPdfEmail(params) {
 
     longitude,
 
-    ownerEmail
-
-
-
-
+    ownerEmail,
   } = params;
 
+  console.log("Sending PDF email to:", email);
 
-
-
-  console.log('Sending PDF email to:', email);
-
-
-
-
-  if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-
-    console.error('❌ Invalid or missing email, aborting mail send:', email);
+  if (
+    !email ||
+    typeof email !== "string" ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  ) {
+    console.error("❌ Invalid or missing email, aborting mail send:", email);
 
     return;
-
   }
-
-
-
 
   const html = `<!DOCTYPE html
 
@@ -3153,123 +2797,79 @@ async function sendPdfEmail(params) {
 
 
 
-</html>`
+</html>`;
 
   // ... (rest of the HTML template remains the same) ...
 
-
-
-
   const transporter = nodemailer.createTransport({
-
-    host: 'mail.pawanaicamping.com',
+    host: "mail.pawanaicamping.com",
 
     secure: true,
 
     port: 465,
 
     auth: {
-
       user: process.env.EMAIL_USER || "admin@pawanaicamping.com",
 
-      pass: process.env.EMAIL_PASS || "19XkY4BJLTG^"
-
-    }
-
+      pass: process.env.EMAIL_PASS || "19XkY4BJLTG^",
+    },
   });
 
-
-
-
   const mailOptions = {
-
-    from: process.env.EMAIL_FROM || "Plumeria Retreat <admin@pawanaicamping.com>",
+    from:
+      process.env.EMAIL_FROM || "Plumeria Retreat <admin@pawanaicamping.com>",
 
     to: email.trim(),
 
-    subject: 'Resort Camping Booking',
+    subject: "Resort Camping Booking",
 
     html: html, // Make sure HTML variable is defined
-
   };
 
-
-
-
   try {
-
     const info = await transporter.sendMail(mailOptions);
 
-    console.log('✅ Email sent:', info.response);
+    console.log("✅ Email sent:", info.response);
 
     return info;
-
   } catch (err) {
-
-    console.error('❌ Mail send error:', err);
+    console.error("❌ Mail send error:", err);
 
     throw err;
-
   }
-
 }
 
-
-
-
-router.post('/verify/:txnid', async (req, res) => {
-
-  console.log('Payment verification callback received');
+router.post("/verify/:txnid", async (req, res) => {
+  console.log("Payment verification callback received");
 
   const { txnid } = req.params;
 
-
-
-
   try {
-
     const payuClient = new PayU({ key: payu_key, salt: payu_salt });
 
     const verifiedData = await payuClient.verifyPayment(txnid);
 
-
-
-
     if (!verifiedData?.transaction_details?.[txnid]) {
-
-      console.error('Transaction details missing for txnid:', txnid);
+      console.error("Transaction details missing for txnid:", txnid);
 
       return res.redirect(`${FRONTEND_BASE_URL}/payment/failed/${txnid}`);
-
     }
-
-
-
 
     const transaction = verifiedData.transaction_details[txnid];
 
-    const newStatus = transaction.status === 'success' ? 'success' : 'failed';
-
-
-
+    const newStatus = transaction.status === "success" ? "success" : "failed";
 
     // Update payment status
 
     await pool.execute(
-
-      'UPDATE bookings SET payment_status = ? WHERE payment_txn_id = ?',
+      "UPDATE bookings SET payment_status = ? WHERE payment_txn_id = ?",
 
       [newStatus, txnid]
-
     );
-
-
-
 
     // Fetch booking info with accommodation_id
 
     const [bookings] = await pool.execute(
-
       `SELECT guest_email, id, guest_name, guest_phone, rooms, adults, children, food_veg, food_nonveg,
 
               food_jain, check_in, check_out, total_amount, advance_amount, accommodation_id 
@@ -3279,66 +2879,41 @@ router.post('/verify/:txnid', async (req, res) => {
        WHERE payment_txn_id = ?`,
 
       [txnid]
-
     );
 
-
-
-
-    if (newStatus === 'success' && bookings && bookings.length > 0) {
-
+    if (newStatus === "success" && bookings && bookings.length > 0) {
       const bk = bookings[0];
 
-      const remainingAmount = parseFloat(bk.total_amount) - parseFloat(bk.advance_amount);
-
-
-
+      const remainingAmount =
+        parseFloat(bk.total_amount) - parseFloat(bk.advance_amount);
 
       // Format dates
 
       const formatDate = (dateValue) => {
-
-        if (!dateValue) return 'Invalid date';
+        if (!dateValue) return "Invalid date";
 
         try {
-
           const date = new Date(dateValue);
 
-          if (isNaN(date.getTime())) throw new Error('Invalid date');
+          if (isNaN(date.getTime())) throw new Error("Invalid date");
 
-          return format(date, 'dd/MM/yyyy');
-
+          return format(date, "dd/MM/yyyy");
         } catch (e) {
+          console.error("Invalid date format:", dateValue);
 
-          console.error('Invalid date format:', dateValue);
-
-          return 'Invalid date';
-
+          return "Invalid date";
         }
-
       };
 
       const today = new Date();
 
+      const day = String(today.getDate()).padStart(2, "0");
 
-
-
-      const day = String(today.getDate()).padStart(2, '0');
-
-      const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+      const month = String(today.getMonth() + 1).padStart(2, "0"); // Months are zero-based
 
       const year = today.getFullYear();
 
-
-
-
       const formattedDate = `${year}-${month}-${day}`;
-
-
-
-
-
-
 
       // Validate email
 
@@ -3346,17 +2921,12 @@ router.post('/verify/:txnid', async (req, res) => {
 
       const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-
-
-
       // Fetch accommodation details
 
       const [accommodations] = await pool.execute(
-
         `SELECT name, address, latitude, longitude ,owner_id FROM accommodations WHERE id = ?`,
 
         [bk.accommodation_id]
-
       );
 
       const acc = accommodations[0] || {};
@@ -3364,23 +2934,20 @@ router.post('/verify/:txnid', async (req, res) => {
       const owner_id = acc.owner_id;
 
       const [user] = await pool.execute(
-
-        `SELECT email FROM users WHERE id = ?`, [owner_id]
-
+        `SELECT email FROM users WHERE id = ?`,
+        [owner_id]
       );
 
       const ownerEmail = user[0].email;
 
       if (!recipientEmail || !isValidEmail(recipientEmail)) {
-
-        console.error('❌ Invalid or missing email, aborting mail send:', recipientEmail);
-
+        console.error(
+          "❌ Invalid or missing email, aborting mail send:",
+          recipientEmail
+        );
       } else {
-
         try {
-
           await sendPdfEmail({
-
             email: recipientEmail,
 
             name: bk.guest_name,
@@ -3389,7 +2956,7 @@ router.post('/verify/:txnid', async (req, res) => {
 
             BookingDate: formattedDate,
 
-            CheckinDate:formatDate(bk.check_in),
+            CheckinDate: formatDate(bk.check_in),
 
             CheckoutDate: formatDate(bk.check_out),
 
@@ -3413,66 +2980,46 @@ router.post('/verify/:txnid', async (req, res) => {
 
             joinCount: bk.food_jain,
 
-            accommodationName: acc.name || '',
+            accommodationName: acc.name || "",
 
-            accommodationAddress: acc.address || '',
+            accommodationAddress: acc.address || "",
 
-            latitude: acc.latitude || '',
+            latitude: acc.latitude || "",
 
-            longitude: acc.longitude || '',
+            longitude: acc.longitude || "",
 
-            ownerEmail: ownerEmail || '',
-
-
-
-
+            ownerEmail: ownerEmail || "",
           });
 
-          console.log('✅ Confirmation email sent to:', recipientEmail);
-
+          console.log("✅ Confirmation email sent to:", recipientEmail);
         } catch (e) {
-
-          console.error('❌ Failed to send confirmation email for txnid:', txnid, '\nError:', e.message);
-
+          console.error(
+            "❌ Failed to send confirmation email for txnid:",
+            txnid,
+            "\nError:",
+            e.message
+          );
         }
-
       }
-
     }
-
-
-
 
     console.log(`Payment ${newStatus} for txnid: ${txnid}`);
 
     res.redirect(`${FRONTEND_BASE_URL}/payment/${newStatus}/${txnid}`);
-
   } catch (error) {
-
-    console.error('Verification error:', error);
+    console.error("Verification error:", error);
 
     res.redirect(`${FRONTEND_BASE_URL}/payment/failed/${txnid}`);
-
   }
-
 });
 
-
-
-
-router.get('/details/:txnid', async (req, res) => {
-
+router.get("/details/:txnid", async (req, res) => {
   const { txnid } = req.params;
 
-
-
-
   try {
-
     // Step 1: Fetch booking by txnid
 
     const [bookings] = await pool.execute(
-
       `SELECT guest_email, id, guest_name, guest_phone, rooms, adults, children, food_veg, food_nonveg,
 
               food_jain, check_in, check_out, total_amount, advance_amount, accommodation_id 
@@ -3482,194 +3029,122 @@ router.get('/details/:txnid', async (req, res) => {
        WHERE payment_txn_id = ?`,
 
       [txnid]
-
     );
 
-
-
-
     if (bookings.length === 0) {
-
-      return res.status(404).json({ message: 'Booking not found' });
-
+      return res.status(404).json({ message: "Booking not found" });
     }
 
-
-
-
     const booking = bookings[0];
-
-
-
 
     // Step 2: Fetch accommodation details
 
     const [accommodations] = await pool.execute(
-
       `SELECT name, address, latitude, longitude ,owner_id FROM accommodations WHERE id = ?`,
 
       [booking.accommodation_id]
-
     );
 
     const accommodation = accommodations[0] || {};
 
     const owner_id = accommodation.owner_id;
 
-    const [user] = await pool.execute(
-
-      `SELECT email FROM users WHERE id = ?`, [owner_id]
-
-    );
+    const [user] = await pool.execute(`SELECT email FROM users WHERE id = ?`, [
+      owner_id,
+    ]);
 
     const ownerEmail = user[0].email;
 
     const today = new Date();
 
+    const day = String(today.getDate()).padStart(2, "0");
 
+    const month = String(today.getMonth() + 1).padStart(2, "0"); // Months are zero-based
 
+    const year = today.getFullYear();
 
-      const day = String(today.getDate()).padStart(2, '0');
-
-      const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are zero-based
-
-      const year = today.getFullYear();
-
-
-
-
-      const bookedDate = `${year}-${month}-${day}`;
-
-
-
+    const bookedDate = `${year}-${month}-${day}`;
 
     // Step 3: Combine and return
 
     return res.json({
-
       booking,
 
       accommodation,
 
       ownerEmail,
 
-      bookedDate
-
+      bookedDate,
     });
-
-
-
-
   } catch (err) {
+    console.error("Error fetching booking details:", err);
 
-    console.error('Error fetching booking details:', err);
-
-    return res.status(500).json({ message: 'Internal server error' });
-
+    return res.status(500).json({ message: "Internal server error" });
   }
-
 });
-
-
-
-
-
-
 
 // PUT /admin/bookings/:id/status - Manually update payment status
 
-router.put('/:id/status', async (req, res) => {
-
+router.put("/:id/status", async (req, res) => {
   try {
-
     const { id } = req.params;
 
     const { payment_status } = req.body;
 
-
-
-
     if (!payment_status) {
-
-      return res.status(400).json({ success: false, error: 'Payment status is required' });
-
+      return res
+        .status(400)
+        .json({ success: false, error: "Payment status is required" });
     }
 
-
-
-
-    const validStatuses = ['pending', 'success', 'failed', 'expired'];
+    const validStatuses = ["pending", "success", "failed", "expired"];
 
     if (!validStatuses.includes(payment_status)) {
-
-      return res.status(400).json({ success: false, error: 'Invalid payment status' });
-
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid payment status" });
     }
 
-
-
-
-    const [result] = await pool.execute('UPDATE bookings SET payment_status = ? WHERE id = ?', [payment_status, id]);
-
-
-
+    const [result] = await pool.execute(
+      "UPDATE bookings SET payment_status = ? WHERE id = ?",
+      [payment_status, id]
+    );
 
     if (result.affectedRows === 0) {
-
-      return res.status(404).json({ success: false, error: 'Booking not found' });
-
+      return res
+        .status(404)
+        .json({ success: false, error: "Booking not found" });
     }
 
-
-
-
-    res.json({ success: true, message: 'Payment status updated' });
-
-
-
-
+    res.json({ success: true, message: "Payment status updated" });
   } catch (error) {
+    console.error("Error updating payment status:", error);
 
-    console.error('Error updating payment status:', error);
-
-    res.status(500).json({ success: false, error: 'Failed to update payment status' });
-
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to update payment status" });
   }
-
 });
 
 // GET /admin/bookings/room-occupancy - Get total rooms booked for a specific date
 
-router.get('/room-occupancy', async (req, res) => {
-
+router.get("/room-occupancy", async (req, res) => {
   try {
-
     const { check_in, id } = req.query;
-
-
-
 
     // Validate date parameter
 
     if (!check_in || !/^\d{4}-\d{2}-\d{2}$/.test(check_in)) {
-
       return res.status(400).json({
-
         success: false,
 
-        error: 'Valid check_in date (YYYY-MM-DD) is required'
-
+        error: "Valid check_in date (YYYY-MM-DD) is required",
       });
-
     }
-
-
-
 
     // Calculate total rooms for the date
 
     const [result] = await pool.execute(
-
       `SELECT COALESCE(SUM(rooms), 0) AS total_rooms
 
        FROM bookings
@@ -3682,48 +3157,28 @@ router.get('/room-occupancy', async (req, res) => {
 
          AND accommodation_id=?`,
 
-
-
-
       [check_in, check_in, id]
-
     );
 
-
-
-
     res.json({
-
       success: true,
 
       date: check_in,
 
-      total_rooms: result[0].total_rooms
-
+      total_rooms: result[0].total_rooms,
     });
-
-
-
-
   } catch (error) {
-
-    console.error('Error fetching room occupancy:', error);
+    console.error("Error fetching room occupancy:", error);
 
     res.status(500).json({
-
       success: false,
 
-      error: 'Failed to fetch room occupancy data',
+      error: "Failed to fetch room occupancy data",
 
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
-
   }
-
 });
-
-
-
 
 module.exports = router;

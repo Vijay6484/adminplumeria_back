@@ -1291,6 +1291,30 @@ router.post("/offline", async (req, res) => {
   }
 });
 
+// delete api call
+router.post('/delete', (req, res) => {
+  const { id } = req.body;
+
+  if (!id) {
+    return res.status(400).json({ error: 'Booking ID is required' });
+  }
+
+  const sql = 'DELETE FROM bookings WHERE id = ?';
+
+  db.query(sql, [id], (err, result) => {
+    if (err) {
+      console.error('Error deleting booking:', err);
+      return res.status(500).json({ error: 'Database error' });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    res.json({ message: 'Booking deleted successfully' });
+  });
+});
+
 // POST /admin/bookings/payments/payu - Initiate PayU payment (UPDATED)
 
 router.post("/payments/payu", async (req, res) => {

@@ -1301,7 +1301,7 @@ router.post('/delete', (req, res) => {
 
   const sql = 'DELETE FROM bookings WHERE id = ?';
 
-  db.query(sql, [id], (err, result) => {
+  pool.query(sql, [id], (err, result) => {
     if (err) {
       console.error('Error deleting booking:', err);
       return res.status(500).json({ error: 'Database error' });

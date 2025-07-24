@@ -1291,31 +1291,45 @@ router.post("/offline", async (req, res) => {
   }
 });
 
-// // delete api call
-// router.post('/delete', (req, res) => {
-//   const { id } = req.body;
+router.delete('/delete/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
 
-//   if (!id) {
-//     return res.status(400).json({ error: 'Booking ID is required' });
-//   }
+    // Validate ID
+    if (isNaN(parseInt(id))) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid booking ID',
+      });
+    }
 
-//   const sql = 'DELETE FROM bookings WHERE id = ?';
+    // Check if booking exists
+    const [existing] = await pool.execute('SELECT * FROM bookings WHERE id = ?', [id]);
 
-//   pool.query(sql, [id], (err, result) => {
-//     if (err) {
-//       console.error('Error deleting booking:', err);
-//       return res.status(500).json({ error: 'Database error' });
-//     }
+    if (existing.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found',
+      });
+    }
 
-//     if (result.affectedRows === 0) {
-//       return res.status(404).json({ message: 'Booking not found' });
-//     }
+    // Delete booking
+    await pool.execute('DELETE FROM bookings WHERE id = ?', [id]);
 
-//     res.json({ message: 'Booking deleted successfully' });
-//   });
-// });
+    return res.json({
+      success: true,
+      message: 'Booking deleted successfully',
+    });
+  } catch (error) {
+    console.error('Error deleting booking:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to delete booking',
+      error: error.message,
+    });
+  }
+});
 
-// POST /admin/bookings/payments/payu - Initiate PayU payment (UPDATED)
 
 router.post("/payments/payu", async (req, res) => {
   try {

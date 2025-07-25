@@ -2840,16 +2840,16 @@ async function sendPdfEmail(params) {
   // ... (rest of the HTML template remains the same) ...
 
   const transporter = nodemailer.createTransport({
-    host: "mail.pawanaicamping.com",
+    host: "smtp.gmail.com",
 
-    secure: true,
+    secure: false,
 
-    port: 465,
+    port: 587,
 
     auth: {
-      user: process.env.EMAIL_USER || "admin@pawanaicamping.com",
+      user: process.env.EMAIL_USER || "team.digitaldiaries@gmail.com",
 
-      pass: process.env.EMAIL_PASS || "19XkY4BJLTG^",
+      pass: process.env.EMAIL_PASS || "gijnmksineyfgphe",
     },
   });
 

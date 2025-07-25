@@ -2842,7 +2842,7 @@ async function sendPdfEmail(params) {
   const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
 
-    secure: true,
+    secure: false,
 
     port: 587,
 

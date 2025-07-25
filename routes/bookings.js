@@ -2849,7 +2849,7 @@ async function sendPdfEmail(params) {
     auth: {
       user: process.env.EMAIL_USER || "vt6484@gmail.com",
 
-      pass: process.env.EMAIL_PASS || "rkju jbyv pejk rxpn",
+      pass: process.env.EMAIL_PASS || "rkjujbyvpejkrxpn",
     },
   });
 

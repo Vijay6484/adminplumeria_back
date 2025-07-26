@@ -1265,6 +1265,10 @@ router.post("/offline", async (req, res) => {
       longitude: booking.longitude || "",
 
       ownerEmail: ownerEmail || "",
+
+      coupon: coupon || "",
+      discount : discount || "",
+      full_amount : full_amount || ""
     });
 
     res.json({
@@ -1696,6 +1700,9 @@ async function sendPdfEmail(params) {
     longitude,
 
     ownerEmail,
+	  coupon,
+	  discount,
+	  full_amount
   } = params;
 
   console.log("Sending PDF email to:", email);

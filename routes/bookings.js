@@ -1066,6 +1066,9 @@ router.post("/offline", async (req, res) => {
 
       total_amount,
       advance_amount = 0,
+      coupon,         
+      discount,       
+      full_amount     
     } = req.body;
 
     // Validate required fields
@@ -2448,6 +2451,9 @@ async function sendPdfEmail(params) {
                                               <p style="padding-top: 5px;padding-bottom: 10px;margin: 0px;">
 
                                                 <b>TARRIF</b></p>
+						<p style="padding-bottom: 10px;margin: 0px;">Full Amount: <b style="float:right;">${full_amount}</b></p>
+                                              <p style="padding-bottom: 10px;margin: 0px;">Discount: <b style="float:right;">${discount}</b></p>
+                                              <p style="padding-bottom: 10px;margin: 0px;">Coupon: <b style="float:right;">${coupon}</b></p>
 
                                               <p style="padding-bottom: 10px;margin: 0px;">Total Amount: <b
 

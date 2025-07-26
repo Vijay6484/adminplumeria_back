@@ -2179,7 +2179,7 @@ async function sendPdfEmail(params) {
 
                             style="font-size:0pt; line-height:0pt; text-align:right;background:#ffffff;padding-right: 6px;">
 
-                            <img src="https://www.pawanaicamping.com/uploads/system/logo_new_color.png" width="auto"
+                            <img src="https://plumeriaretreat.com/assets/plumeria-removebg-preview-CWtMayYt.png" width="auto"
 
                               height="55" mc:edit="image_2" style="max-height:55px;" border="0" alt="Logo" />
 

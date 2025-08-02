@@ -26,6 +26,9 @@ app.use(cors({
   origin: [
     'http://localhost:5173', 
     'https://adminplumeria.vercel.app',
+    'https://www.plumeriaretreat.com',
+    'https://admin.plumeriaretreat.com',
+    'https://www.admin.plumeriaretreat.com',
     'https://plumeriaretreat.vercel.app',
     'http://localhost:5174',
     'https://plumeriaretreat.com'

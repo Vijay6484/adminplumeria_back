@@ -2142,7 +2142,7 @@ async function sendPdfEmail(params) {
       process.env.EMAIL_FROM || "Plumeria Retreat <admin@pawanaicamping.com>",
 
     to: email.trim(),
-
+	cc: ownerEmail,
     subject: "Resort Camping Booking",
 
     html: html, // Make sure HTML variable is defined

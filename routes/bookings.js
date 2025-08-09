@@ -2124,11 +2124,11 @@ async function sendPdfEmail(params) {
   // ... (rest of the HTML template remains the same) ...
 
   const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
+    host: "smtp.hostinger.com",
 
     secure: false,
 
-    port: 587,
+    port: 465,
 
     auth: {
       user: process.env.EMAIL_USER || "vt6484@gmail.com",

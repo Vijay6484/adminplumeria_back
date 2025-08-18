@@ -1604,7 +1604,7 @@ async function sendPdfEmail(params) {
 
                                             <a href="mailto: ${ownerEmail}"
 
-                                              style="color: #216896;">${ownerEmail}</a> if there is any
+                                              style="color: #216896;">booking@plumeriaretreat.com</a> if there is any
 
                                             discrepancy in this payment
 
@@ -1955,7 +1955,7 @@ async function sendPdfEmail(params) {
 
                                                     href="mailto:${ownerEmail}"
 
-                                                    style="color: #164e6f;"><b>${ownerEmail}</b></a></span>
+                                                    style="color: #164e6f;"><b>booking@plumeriaretreat.com</b></a></span>
 
                                               </div>
 

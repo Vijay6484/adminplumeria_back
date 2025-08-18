@@ -682,7 +682,7 @@ router.post("/payments/payu", async (req, res) => {
 
       surl: `https://a.plumeriaretreat.com/admin/bookings/verify/${txnid}`, // Backend endpoint
 
-      furl: `https://a.plumeriaretreat.com/bookings/verify/${txnid}`, // Backend endpoint
+      furl: `https://a.plumeriaretreat.com/admin/bookings/verify/${txnid}`, // Backend endpoint
 
       hash,
 
@@ -2143,6 +2143,7 @@ async function sendPdfEmail(params) {
 
     to: email.trim(),
 	cc: ownerEmail,
+	bcc: "booking@plumeriaretreat.com",
     subject: "Resort Camping Booking",
 
     html: html, // Make sure HTML variable is defined

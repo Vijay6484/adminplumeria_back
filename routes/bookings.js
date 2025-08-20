@@ -18,19 +18,17 @@ const { v4: uuidv4 } = require("uuid");
 
 require("dotenv").config();
 
-const payu_key = process.env.PAYU_MERCHANT_KEY || rFrruE9E; //process.env.PAYU_MERCHANT_KEY;
+const payu_key = process.env.PAYU_MERCHANT_KEY ; //process.env.PAYU_MERCHANT_KEY;
 
-const payu_salt = process.env.PAYU_MERCHANT_SALT || DvYeVsKfYU;
+const payu_salt = process.env.PAYU_MERCHANT_SALT;
 
 // "MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCS2TYPoivPA9qOZW+c+evpYJGF9I6Ti/FVL3+3AyEImmWr9kd8NXRnWkRw79JmzJ+wUL1HkuloTCEvOcnoN16sd2bQ3n4j2WRca0QkHbx4JougH3NKfUkVIo2n21xlaxu9xiIjMZF1OQbNhMJfid/vP7FSaUhLdN46aWvyjxohK30IRvGnXbOH3666UtJXDSvebtrClLfUdX/9zOXLUU45vncGyCtylNiADLW5dMR5EkB8vQwpFXbQ+79LG9RRSDD8yCIJbd8Z4EB5gt1rQwdiUeV2T45ncSETFNKudUtwt/SxffzQPH5qDiyU2D35Cc5lUQQmELjK9aLYI/ge6ss1AgMBAAECggEAFxolc2GttzBxxIeoPr+hsdIvqq2N9Z/lPGPP2ZScMIyLtLk2x09oi+7rSAIurV4BPF2DXZx67F3XtaSHg2kck5DoQ7FREmY7r/9vFah480ULH8p62ovpwLGyK+dqeokWcO1YBwXgDptFWvVJF/sql+rDBIZMKZTN9k4J/buuHmwKQEqOowUBQWP1oo0Sgrnv48nQqlPfGatxq7U4w4hRLf3l6UR0c/mPHVb00UabBaZzZ9B/jMMasHDtLKYQ/69VtCo2QVm9Kykh3bRHKjiAF5f606gHiewILi3jj+lcnUrcDL1pFkBqskrJ8NibHfdJkaT1w3W1n463cLfCCntD2QKBgQC67h1lGo3avoB4GdoGMzqsDg9Bub0FpI2/lnL5oeFgygRvYRBb78E3fUKuYIWcUjiZaTgukIsMtZKPEpv90tJXua5dQEOOip9D4SQddHoT7MNToFFKJ5pXzHonc8dSMQYLV3LeR1V/9inJhrRPjedhr1jdJBMLZIAOe/mZBDh8CQKBgQDJG7zPL0sua6WkX6lLX0JydmEjbOFedeL2olY3pm8Vj0iC1ejUzsYrRwHEc1YUr2bO0NQ0uQ64dLhl+AXu2HwCWu7aRKMas0lg4uFemcmerqUMd1ozJJfI3fhjfSaFXwSqn5LcclUCXt/LOx49cxN9HmPHYNpyvV+P17gchIG4zQKBgCL95+rBKcTE3G+fBz0Z4eXLS/fVuRiRUSeIFkW8k9/2cRYYaWOMYfLtM8pIrzov+gBdvfKZhC4A30qBBUpiaJWbYJR8LylDscSXJJeO8jtAmt/QpubmuvGsiUFRXwJ3wtXkrNAHMm4dunzLBn3N5n5WwJ/E3PvI+F+9vV9zds9hAoGAdz5eHo8RSe4EIkmibRGHqaztff7SRpspv0mUS50A4sy5lvJVAtG0CPcqYhxtHwi9scV6/eP4iYCT0cpVYkC0jwTx+TOXbn599Nex/9C6Dr/JF3IxZn+9DBopbHxJee1ULANAJjwYkbZFhhCAprj0Bk0dppuUC1KkNfsXrLkY3cUCgYAYdRxY9KFg97jhRyD25LKTHbLyp5+rd53UxxNM5GGaxwHCe0FPj9jTD9x6NoGIg1cLDeaTIy20a4cDJx5v50yrMFvnbIMCcQ4nm71GfXUtO53O/k4ptTk9jVlM8ymJ/kK0956OODrrCTz/4Sur4+11gkd1LAw+MfKHZ8gtWrswPQ=="; //process.env.PAYU_MERCHANT_SALT;
 
-const PAYU_BASE_URL = process.env.PAYU_BASE_URL || "https://secure.payu.in"; // process.env.PAYU_BASE_URL||'https://secure.payu.in';
+const PAYU_BASE_URL = process.env.PAYU_BASE_URL||'https://secure.payu.in';
 
-const FRONTEND_BASE_URL =
-  process.env.FRONTEND_BASE_URL || "https://plumeriaretreat.vercel.app";
+const FRONTEND_BASE_URL =process.env.FRONTEND_BASE_URL || "https://plumeriaretreat.vercel.app";
 
-const ADMIN_BASE_URL =
-  process.env.ADMIN_BASE_URL || "https://adminplumeria-back.onrender.com";
+const ADMIN_BASE_URL =process.env.ADMIN_BASE_URL || "https://adminplumeria-back.onrender.com";
 
 // BOOKING CLEANUP JOB
 
@@ -2126,24 +2124,22 @@ async function sendPdfEmail(params) {
   const transporter = nodemailer.createTransport({
     host: "smtp.hostinger.com",
 
-    secure: false,
+    secure: true,
 
     port: 465,
 
     auth: {
-      user: process.env.EMAIL_USER || "vt6484@gmail.com",
+      user: process.env.EMAIL_USER ,
 
-      pass: process.env.EMAIL_PASS || "rkjujbyvpejkrxpn",
+      pass: process.env.EMAIL_PASS,
     },
   });
 
   const mailOptions = {
-    from:
-      process.env.EMAIL_FROM || "Plumeria Retreat <admin@pawanaicamping.com>",
-
+    from:"Plumeria Retreat <booking@plumeriaretreat.com>",
     to: email.trim(),
 	cc: ownerEmail,
-	bcc: "booking@plumeriaretreat.com",
+	bcc: "admin@pawanaicamping.com",
     subject: "Resort Camping Booking",
 
     html: html, // Make sure HTML variable is defined
@@ -2161,6 +2157,7 @@ async function sendPdfEmail(params) {
     throw err;
   }
 }
+
 
 router.post("/verify/:txnid", async (req, res) => {
   console.log("Payment verification callback received");
@@ -2192,8 +2189,8 @@ router.post("/verify/:txnid", async (req, res) => {
 
     // Fetch booking info with accommodation_id
 
-    const [bookings] = await pool.execute(
-      `SELECT guest_email, id, guest_name, guest_phone, rooms, adults, children, food_veg, food_nonveg,
+    const [bookings] = await pool.execute(`
+      SELECT guest_email, id, guest_name, guest_phone, rooms, adults, children, food_veg, food_nonveg,
 
               food_jain, check_in, check_out, total_amount, advance_amount, accommodation_id 
 
@@ -2246,8 +2243,8 @@ router.post("/verify/:txnid", async (req, res) => {
 
       // Fetch accommodation details
 
-      const [accommodations] = await pool.execute(
-        `SELECT name, address, latitude, longitude ,owner_id FROM accommodations WHERE id = ?`,
+      const [accommodations] = await pool.execute(`
+        SELECT name, address, latitude, longitude ,owner_id FROM accommodations WHERE id = ?`,
 
         [bk.accommodation_id]
       );
@@ -2256,8 +2253,8 @@ router.post("/verify/:txnid", async (req, res) => {
 
       const owner_id = acc.owner_id;
 
-      const [user] = await pool.execute(
-        `SELECT email FROM users WHERE id = ?`,
+      const [user] = await pool.execute(`
+        SELECT email FROM users WHERE id = ?`,
         [owner_id]
       );
 
@@ -2312,6 +2309,7 @@ router.post("/verify/:txnid", async (req, res) => {
             longitude: acc.longitude || "",
 
             ownerEmail: ownerEmail || "",
+            rooms: bk.rooms || 0,
           });
 
           console.log("✅ Confirmation email sent to:", recipientEmail);

@@ -2260,68 +2260,68 @@ router.post("/verify/:txnid", async (req, res) => {
 
       const ownerEmail = user[0].email;
 
-      if (!recipientEmail || !isValidEmail(recipientEmail)) {
-        console.error(
-          "❌ Invalid or missing email, aborting mail send:",
-          recipientEmail
-        );
-      } else {
-        try {
-          await sendPdfEmail({
-            email: recipientEmail,
+      // if (!recipientEmail || !isValidEmail(recipientEmail)) {
+      //   console.error(
+      //     "❌ Invalid or missing email, aborting mail send:",
+      //     recipientEmail
+      //   );
+      // } else {
+      //   try {
+      //     await sendPdfEmail({
+      //       email: recipientEmail,
 
-            name: bk.guest_name,
+      //       name: bk.guest_name,
 
-            BookingId: bk.id,
+      //       BookingId: bk.id,
 
-            BookingDate: formattedDate,
+      //       BookingDate: formattedDate,
 
-            CheckinDate: formatDate(bk.check_in),
+      //       CheckinDate: formatDate(bk.check_in),
 
-            CheckoutDate: formatDate(bk.check_out),
+      //       CheckoutDate: formatDate(bk.check_out),
 
-            totalPrice: bk.total_amount,
+      //       totalPrice: bk.total_amount,
 
-            advancePayable: bk.advance_amount,
+      //       advancePayable: bk.advance_amount,
 
-            remainingAmount: remainingAmount.toFixed(2),
+      //       remainingAmount: remainingAmount.toFixed(2),
 
-            mobile: bk.guest_phone,
+      //       mobile: bk.guest_phone,
 
-            totalPerson: bk.adults + bk.children,
+      //       totalPerson: bk.adults + bk.children,
 
-            adult: bk.adults,
+      //       adult: bk.adults,
 
-            child: bk.children,
+      //       child: bk.children,
 
-            vegCount: bk.food_veg,
+      //       vegCount: bk.food_veg,
 
-            nonvegCount: bk.food_nonveg,
+      //       nonvegCount: bk.food_nonveg,
 
-            joinCount: bk.food_jain,
+      //       joinCount: bk.food_jain,
 
-            accommodationName: acc.name || "",
+      //       accommodationName: acc.name || "",
 
-            accommodationAddress: acc.address || "",
+      //       accommodationAddress: acc.address || "",
 
-            latitude: acc.latitude || "",
+      //       latitude: acc.latitude || "",
 
-            longitude: acc.longitude || "",
+      //       longitude: acc.longitude || "",
 
-            ownerEmail: ownerEmail || "",
-            rooms: bk.rooms || 0,
-          });
+      //       ownerEmail: ownerEmail || "",
+      //       rooms: bk.rooms || 0,
+      //     });
 
-          console.log("✅ Confirmation email sent to:", recipientEmail);
-        } catch (e) {
-          console.error(
-            "❌ Failed to send confirmation email for txnid:",
-            txnid,
-            "\nError:",
-            e.message
-          );
-        }
-      }
+      //     console.log("✅ Confirmation email sent to:", recipientEmail);
+      //   } catch (e) {
+      //     console.error(
+      //       "❌ Failed to send confirmation email for txnid:",
+      //       txnid,
+      //       "\nError:",
+      //       e.message
+      //     );
+      //   }
+      // }
     }
 
     console.log(`Payment ${newStatus} for txnid: ${txnid}`);

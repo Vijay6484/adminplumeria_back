@@ -1713,10 +1713,7 @@ async function sendPdfEmail(params) {
                                               <p style="padding-top: 5px;padding-bottom: 10px;margin: 0px;">
 
                                                 <b>TARRIF</b></p>
-						<p style="padding-bottom: 10px;margin: 0px;">Full Amount: <b style="float:right;">${full_amount}</b></p>
-                                              <p style="padding-bottom: 10px;margin: 0px;">Discount: <b style="float:right;">${discount}</b></p>
-                                              <p style="padding-bottom: 10px;margin: 0px;">Coupon: <b style="float:right;">${coupon}</b></p>
-
+					
                                               <p style="padding-bottom: 10px;margin: 0px;">Total Amount: <b
 
                                                   style="float:right;">${totalPrice}</b></p>
@@ -2108,11 +2105,11 @@ async function sendPdfEmail(params) {
   // ... (rest of the HTML template remains the same) ...
 
   const transporter = nodemailer.createTransport({
-    host: "mail.hostinger.com",
+    host: "smtp.hostinger.com",
 
-    secure: true,
+    secure: false,
 
-    port: 465,
+    port: 587,
 
     auth: {
       user: process.env.EMAIL_USER ,
@@ -2122,7 +2119,7 @@ async function sendPdfEmail(params) {
   });
 
   const mailOptions = {
-    from:"chandandpu@gmail.com",
+    from:process.env.EMAIL_USER,
     to: email.trim(),
 	cc: ownerEmail,
 	bcc: "admin@pawanaicamping.com",

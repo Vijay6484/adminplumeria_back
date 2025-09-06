@@ -28,7 +28,7 @@ const PAYU_BASE_URL =process.env.PAYU_BASE_URL ||'https://secure.payu.in';
 
 const FRONTEND_BASE_URL =process.env.FRONTEND_BASE_URL || "https://plumeriaretreat.vercel.app";
 
-const ADMIN_BASE_URL =process.env.ADMIN_BASE_URL || "https://adminplumeria-back.onrender.com";
+const ADMIN_BASE_URL =process.env.ADMIN_BASE_URL || "https://a.plumeriaretreat.com";
 
 // BOOKING CLEANUP JOB
 
@@ -669,8 +669,8 @@ router.post("/payments/payu", async (req, res) => {
       firstname: truncatedFirstname,
       email: truncatedEmail,
       phone: cleanPhone.substring(0, 10),
-      surl: `http://localhost:5000/admin/bookings/success/verify/${txnid}`, // ✅ backend route
-      furl: `http://localhost:5000/admin/bookings/failed/verify/${txnid}`,  // ✅ backend route
+      surl: `${ADMIN_BASE_URL}/admin/bookings/success/verify/${txnid}`, // ✅ backend route
+      furl: `${ADMIN_BASE_URL}/admin/bookings/failed/verify/${txnid}`,  // ✅ backend route
       hash,
       currency: "INR",
       udf1, udf2, udf3, udf4, udf5, udf6, udf7, udf8, udf9, udf10
@@ -2108,16 +2108,16 @@ async function sendPdfEmail(params) {
   // ... (rest of the HTML template remains the same) ...
 
   const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
+    host: "mail.hostinger.com",
 
     secure: true,
 
     port: 465,
 
     auth: {
-      user: "chandandpu@gmail.com" ,
+      user: process.env.EMAIL_USER ,
 
-      pass: "qrpnjimhnbocckht",
+      pass: process.env.EMAIL_PASS,
     },
   });
 

@@ -88,6 +88,7 @@ router.get("/", async (req, res) => {
 
 
 
+
         b.adults,
 
         b.children,
@@ -103,7 +104,6 @@ router.get("/", async (req, res) => {
         b.payment_txn_id,
 
         b.created_at
-
 
 
 
@@ -265,7 +265,7 @@ router.post("/", async (req, res) => {
         guest_email,
         guest_phone || null,
         accommodation_id,
-        package_id || null,
+        package_id,
 
         check_in,
         check_out,
@@ -493,38 +493,53 @@ router.post("/offline", async (req, res) => {
 
     const remainingAmount = booking.total_amount - booking.advance_amount;
 
-    // Send email but do not fail booking creation if email fails
-    try {
-      await sendPdfEmail({
-        email: booking.guest_email,
-        name: booking.guest_name,
-        BookingId: booking.id,
-        BookingDate: formatDate(booking.created_at),
-        CheckinDate: formatDate(booking.check_in),
-        CheckoutDate: formatDate(booking.check_out),
-        totalPrice: booking.total_amount,
-        advancePayable: booking.advance_amount,
-        remainingAmount: remainingAmount.toFixed(2),
-        mobile: booking.guest_phone,
-        totalPerson: booking.adults + booking.children,
-        adult: booking.adults,
-        child: booking.children,
-        vegCount: booking.food_veg,
-        nonvegCount: booking.food_nonveg,
-        joinCount: booking.food_jain,
-        accommodationName: booking.accommodation_name || "",
-        accommodationAddress: booking.accommodation_address || "",
-        latitude: booking.latitude || "",
-        longitude: booking.longitude || "",
-        ownerEmail: ownerEmail || "",
-        ownerName: ownerName || "",
-        ownerPhone: ownerPhone || "",
-        rooms: booking.rooms || 0,
-        phoneNumber: ownerPhone || ""
-      });
-    } catch (mailErr) {
-      console.warn("⚠️ Failed to send booking confirmation email:", mailErr?.message || mailErr);
-    }
+    await sendPdfEmail({
+      email: booking.guest_email,
+
+      name: booking.guest_name,
+
+      BookingId: booking.id,
+
+      BookingDate: formatDate(booking.created_at),
+
+      CheckinDate: formatDate(booking.check_in),
+
+      CheckoutDate: formatDate(booking.check_out),
+
+      totalPrice: booking.total_amount,
+
+      advancePayable: booking.advance_amount,
+
+      remainingAmount: remainingAmount.toFixed(2),
+
+      mobile: booking.guest_phone,
+
+      totalPerson: booking.adults + booking.children,
+
+      adult: booking.adults,
+
+      child: booking.children,
+
+      vegCount: booking.food_veg,
+
+      nonvegCount: booking.food_nonveg,
+
+      joinCount: booking.food_jain,
+
+      accommodationName: booking.accommodation_name || "",
+
+      accommodationAddress: booking.accommodation_address || "",
+
+      latitude: booking.latitude || "",
+
+      longitude: booking.longitude || "",
+
+      ownerEmail: ownerEmail || "",
+      rooms : booking.rooms || "",
+      coupon: coupon || "",
+      discount : discount || "",
+      full_amount : full_amount || ""
+    });
 
     res.json({
       success: true,
@@ -637,17 +652,13 @@ router.post("/payments/payu", async (req, res) => {
 
     // --- Hash string (include all UDFs) ---
     const hashString =
-      `${payu_salt}|${status}||||||${udf10}|${udf9}|${udf8}|${udf7}|${udf6}|${udf5}|${udf4}|${udf3}|${udf2}|${udf1}|${email}|${firstname}|${productinfo}|${amount}|${payuTxnId}|${payu_key}`;
+      `${payu_key}|${txnid}|${formattedAmount}|${truncatedProductinfo}|${truncatedFirstname}|${truncatedEmail}|` +
+      `${udf1}|${udf2}|${udf3}|${udf4}|${udf5}|${udf6}|${udf7}|${udf8}|${udf9}|${udf10}|${payu_salt}`;
 
-    const hash = crypto.createHash("sha512").update(hashSequence).digest("hex");
+    const hash = crypto.createHash("sha512").update(hashString).digest("hex");
 
-    console.log("🔐 PayU Provided Hash:", payuHash);
-    console.log("🔐 Server Calculated Hash:", calcHash);
-
-    // if (calcHash !== payuHash) {
-    //   console.error("❌ Hash mismatch – possible tampering!");
-    //   return res.redirect(`${FRONTEND_BASE_URL}/payment/failed/${txnid}`);
-    // }
+    console.log("📑 PayU Hash String:", hashString);
+    console.log("🔐 Generated Hash:", hash);
 
     // --- Save txnid ---
     await pool.execute(
@@ -950,17 +961,10 @@ async function sendPdfEmail(params) {
 	  coupon,
 	  discount,
 	  full_amount,
-	  rooms,
-    phoneNumber
+	  rooms
   } = params;
 
   console.log("Sending PDF email to:", email);
-
-  // Skip sending if SMTP credentials are not configured
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.warn("⚠️ EMAIL_USER or EMAIL_PASS not set. Skipping email send.");
-    return;
-  }
 
   if (
     !email ||
@@ -1691,7 +1695,7 @@ async function sendPdfEmail(params) {
                                         <p style="padding-bottom: 5px;margin: 0px;">Adult: <b>${adult}</b></p>
 
                                         <p style="padding-bottom: 5px;margin: 0px;">Child: <b>${child}</b></p>
-					<p style="padding-bottom: 5px;margin: 0px;">Rooms: <b>${rooms}</b></p>
+				                               	<p style="padding-bottom: 5px;margin: 0px;">Rooms: <b>${rooms}</b></p>
 
 
                                         <p style="padding-bottom: 5px;margin: 0px;">Veg Count: <b>${vegCount}</b></p>
@@ -1938,7 +1942,7 @@ async function sendPdfEmail(params) {
 
                                                     href="mailto:${ownerEmail}"
 
-                                                    style="color: #164e6f;"><b>${ownerEmail || 'booking@plumeriaretreat.com'}</b></a></span>
+                                                    style="color: #164e6f;"><b>booking@plumeriaretreat.com</b></a></span>
 
                                               </div>
 
@@ -1956,7 +1960,7 @@ async function sendPdfEmail(params) {
 
                                                 <span><b>Contact Number- </b></span>
 
-                                                <span>${phoneNumber}</span>
+                                                <span>${ownerName || ''}</span>- <span>${ownerPhone || ''}</span>
 
                                               </div>
 
@@ -1996,7 +2000,7 @@ async function sendPdfEmail(params) {
 
                                           communication related to your booking from Plumeria Retreat Pawna lake AC
 
-                                          cottage , please add <a href="mailto:babukale60@gmail.com "
+                                          cottage , please add <a href="mailto:booking@plumeriaretreat.com"
 
                                             style="color: #164e6f;"><b>booking@plumeriaretreat.com </b></a> to your contact list
 
@@ -2122,7 +2126,9 @@ async function sendPdfEmail(params) {
 
   const mailOptions = {
     from:process.env.EMAIL_USER,
-    to:[ email.trim(),ownerEmail.trim() ,"admin@pawanaicamping.com"],
+    to: email.trim(),
+	cc: ownerEmail,
+	bcc: "admin@pawanaicamping.com",
     subject: "Resort Camping Booking",
 
     html: html, // Make sure HTML variable is defined
@@ -2230,7 +2236,7 @@ router.post("/success/verify/:txnid", async (req, res) => {
       console.log("👤 Owner ID:", owner_id);
 
       const [user] = await pool.execute(
-        `SELECT email,phoneNumber FROM users WHERE id = ?`,
+        `SELECT name, email, phoneNumber FROM users WHERE id = ?`,
         [owner_id]
       );
       console.log("👨 Owner fetched:", user);
@@ -2269,16 +2275,10 @@ router.post("/success/verify/:txnid", async (req, res) => {
           ownerName: ownerName || "",
           ownerPhone: ownerPhone || "",
           rooms: bk.rooms || 0,
-          phoneNumber: ownerPhone || ""
         });
         console.log("✅ Confirmation email sent to:", recipientEmail);
       } catch (e) {
-        console.error(
-          "❌ Failed to send confirmation email for txnid:",
-          txnid,
-          "\nError:",
-          e.message
-        );
+        console.error("❌ Email sending failed:", e.message);
       }
     }
 
@@ -2335,13 +2335,11 @@ router.get("/details/:txnid", async (req, res) => {
 
     const owner_id = accommodation.owner_id;
 
-    const [user] = await pool.execute(`SELECT name, email, phoneNumber FROM users WHERE id = ?`, [
+    const [user] = await pool.execute(`SELECT email FROM users WHERE id = ?`, [
       owner_id,
     ]);
 
-    const ownerName = user[0]?.name;
-    const ownerEmail = user[0]?.email;
-    const ownerPhone = user[0]?.phoneNumber;
+    const ownerEmail = user[0].email;
 
     const today = new Date();
 
@@ -2361,8 +2359,6 @@ router.get("/details/:txnid", async (req, res) => {
       accommodation,
 
       ownerEmail,
-      ownerName,
-      ownerPhone,
 
       bookedDate,
     });
@@ -2472,5 +2468,3 @@ router.get("/room-occupancy", async (req, res) => {
 });
 
 module.exports = router;
-
-

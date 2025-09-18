@@ -445,7 +445,7 @@ router.post("/offline", async (req, res) => {
 
     // Fetch booking details with accommodation
 
-    const [[booking]] = await connection.execute(
+    const [bookingRows] = await connection.execute(
       `
 
       SELECT b.*, a.name AS accommodation_name, a.address AS accommodation_address,
@@ -454,11 +454,12 @@ router.post("/offline", async (req, res) => {
 
       FROM bookings b
 
-      JOIN accommodations a ON b.accommodation_id = a.id
+      LEFT JOIN accommodations a ON b.accommodation_id = a.id
 
       WHERE b.id = ?`,
       [booking_id]
     );
+    const booking = bookingRows[0];
 
     let ownerEmail = null;
     let ownerName = null;
@@ -491,55 +492,42 @@ router.post("/offline", async (req, res) => {
         .padStart(2, "0")}/${d.getFullYear()}`;
     };
 
-    const remainingAmount = booking.total_amount - booking.advance_amount;
+    const remainingAmount = (booking?.total_amount || 0) - (booking?.advance_amount || 0);
 
-    await sendPdfEmail({
-      email: booking.guest_email,
-
-      name: booking.guest_name,
-
-      BookingId: booking.id,
-
-      BookingDate: formatDate(booking.created_at),
-
-      CheckinDate: formatDate(booking.check_in),
-
-      CheckoutDate: formatDate(booking.check_out),
-
-      totalPrice: booking.total_amount,
-
-      advancePayable: booking.advance_amount,
-
-      remainingAmount: remainingAmount.toFixed(2),
-
-      mobile: booking.guest_phone,
-
-      totalPerson: booking.adults + booking.children,
-
-      adult: booking.adults,
-
-      child: booking.children,
-
-      vegCount: booking.food_veg,
-
-      nonvegCount: booking.food_nonveg,
-
-      joinCount: booking.food_jain,
-
-      accommodationName: booking.accommodation_name || "",
-
-      accommodationAddress: booking.accommodation_address || "",
-
-      latitude: booking.latitude || "",
-
-      longitude: booking.longitude || "",
-
-      ownerEmail: ownerEmail || "",
-      rooms : booking.rooms || "",
-      coupon: coupon || "",
-      discount : discount || "",
-      full_amount : full_amount || ""
-    });
+    // Send email but do not fail booking creation if email fails
+    try {
+      await sendPdfEmail({
+        email: booking?.guest_email || "",
+        name: booking?.guest_name || "",
+        BookingId: booking?.id,
+        BookingDate: formatDate(booking?.created_at),
+        CheckinDate: formatDate(booking?.check_in),
+        CheckoutDate: formatDate(booking?.check_out),
+        totalPrice: booking?.total_amount || 0,
+        advancePayable: booking?.advance_amount || 0,
+        remainingAmount: remainingAmount.toFixed(2),
+        mobile: booking?.guest_phone || "",
+        totalPerson: (booking?.adults || 0) + (booking?.children || 0),
+        adult: booking?.adults || 0,
+        child: booking?.children || 0,
+        vegCount: booking?.food_veg || 0,
+        nonvegCount: booking?.food_nonveg || 0,
+        joinCount: booking?.food_jain || 0,
+        accommodationName: booking?.accommodation_name || "",
+        accommodationAddress: booking?.accommodation_address || "",
+        latitude: booking?.latitude || "",
+        longitude: booking?.longitude || "",
+        ownerEmail: ownerEmail || "",
+        ownerName: ownerName || "",
+        ownerPhone: ownerPhone || "",
+        rooms: booking?.rooms || 0,
+        coupon: coupon || "",
+        discount: discount || "",
+        full_amount: full_amount || "",
+      });
+    } catch (mailErr) {
+      console.warn("⚠️ Failed to send booking confirmation email:", mailErr?.message || mailErr);
+    }
 
     res.json({
       success: true,
@@ -2125,10 +2113,10 @@ async function sendPdfEmail(params) {
   });
 
   const mailOptions = {
-    from:process.env.EMAIL_USER,
-    to: email.trim(),
-	cc: ownerEmail,
-	bcc: "admin@pawanaicamping.com",
+    from: process.env.EMAIL_USER,
+    to: (email || '').trim(),
+    cc: (ownerEmail || '').trim() || undefined,
+    bcc: "admin@pawanaicamping.com",
     subject: "Resort Camping Booking",
 
     html: html, // Make sure HTML variable is defined

@@ -265,7 +265,7 @@ router.post("/", async (req, res) => {
         guest_email,
         guest_phone || null,
         accommodation_id,
-        package_id,
+        package_id || null,
 
         check_in,
         check_out,
@@ -2472,4 +2472,5 @@ router.get("/room-occupancy", async (req, res) => {
 });
 
 module.exports = router;
+
 

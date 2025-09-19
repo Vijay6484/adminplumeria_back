@@ -958,6 +958,8 @@ async function sendPdfEmail(params) {
     longitude,
 
     ownerEmail,
+    ownerName,
+    ownerPhone,
 	  coupon,
 	  discount,
 	  full_amount,

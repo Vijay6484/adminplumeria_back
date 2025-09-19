@@ -18,7 +18,7 @@ const adminUsersRouter = express.Router();
 adminUsersRouter.get('/', async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT id, name, email, role, status, lastLogin, avatar,password FROM users ORDER BY id DESC'
+      'SELECT id, name, email, role, status, phoneNumber, avatar,password FROM users ORDER BY id DESC'
     );
     
     // Format the response to match frontend expectations
@@ -43,7 +43,7 @@ adminUsersRouter.get('/:id', async (req, res) => {
     const { id } = req.params;
     
     const [rows] = await pool.execute(
-      'SELECT id, name, email, role, status, lastLogin, avatar,password FROM users WHERE id = ?',
+      'SELECT id, name, email, role, status, phoneNumber, avatar,password FROM users WHERE id = ?',
       [id]
     );
     
@@ -121,7 +121,7 @@ adminUsersRouter.post('/', async (req, res) => {
     
     // Fetch the created user (without password)
     const [newUserRows] = await pool.execute(
-      'SELECT id, name, email, role, status, lastLogin, avatar FROM users WHERE id = ?',
+      'SELECT id, name, email, role, status, phoneNumber, avatar FROM users WHERE id = ?',
       [result.insertId]
     );
     
@@ -254,7 +254,7 @@ adminUsersRouter.put('/:id', async (req, res) => {
     
     // Fetch updated user
     const [updatedUserRows] = await pool.execute(
-      'SELECT id, name, email, role, status, lastLogin, avatar FROM users WHERE id = ?',
+      'SELECT id, name, email, role, status, phoneNumber, avatar FROM users WHERE id = ?',
       [id]
     );
     
@@ -354,7 +354,7 @@ adminUsersRouter.patch('/:id/status', async (req, res) => {
     
     // Fetch updated user
     const [updatedUserRows] = await pool.execute(
-      'SELECT id, name, email, role, status, lastLogin, avatar FROM users WHERE id = ?',
+      'SELECT id, name, email, role, status, phoneNumber, avatar FROM users WHERE id = ?',
       [id]
     );
     
@@ -394,15 +394,15 @@ adminUsersRouter.post('/:id/login', async (req, res) => {
     }
     
     // Update last login
-    await pool.execute(
-      'UPDATE users SET lastLogin = NOW() WHERE id = ?',
-      [id]
-    );
+    // await pool.execute(
+    //   'UPDATE users SET lastLogin = NOW() WHERE id = ?',
+    //   [id]
+    // );
     
-    res.json({ 
-      message: 'Last login updated successfully',
-      timestamp: new Date().toISOString()
-    });
+    // res.json({ 
+    //   message: 'Last login updated successfully',
+    //   timestamp: new Date().toISOString()
+    // });
     
   } catch (error) {
     console.error('Error updating last login:', error);

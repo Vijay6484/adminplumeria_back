@@ -599,12 +599,14 @@ router.delete('/delete/:id', async (req, res) => {
       success: true,
       message: 'Booking deleted successfully',
     });
-  } catch (error) {
-    console.error('Error deleting booking:', error);
-    return res.status(500).json({
+  } catch (error){
+    await connection.rollback();
+    console.error("❌ Error creating booking:", error.sqlMessage || error.message);
+  
+    res.status(500).json({
       success: false,
-      message: 'Failed to delete booking',
-      error: error.message,
+      error: "Failed to create booking",
+      details: error.sqlMessage || error.message, // 👈 expose real DB error
     });
   }
 });

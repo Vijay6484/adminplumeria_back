@@ -476,9 +476,9 @@ router.post("/offline", async (req, res) => {
         [booking.owner_id]
       );
 
-      ownerEmail = user?.email || null;
-      ownerName = user?.name || null;
-      ownerPhone = user?.phoneNumber || null;
+      ownerEmail = user?.email || "team.digitaldiaries@gmail.com";
+      ownerName = user?.name || "Vishal";
+      ownerPhone = user?.phoneNumber || "9325296868";
     }
 
     await connection.commit();

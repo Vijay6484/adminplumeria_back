@@ -2130,7 +2130,7 @@ async function sendPdfEmail(params) {
     from:process.env.EMAIL_USER,
     to: email.trim(),
 	cc: ownerEmail,
-	bcc: "admin@pawanaicamping.com",
+	bcc: "admin@plumeriaretreat.com",
     subject: "Resort Camping Booking",
 
     html: html, // Make sure HTML variable is defined

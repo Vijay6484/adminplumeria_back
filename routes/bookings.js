@@ -465,6 +465,7 @@ router.post("/offline", async (req, res) => {
     let ownerPhone = null;
 
     // Get owner details using owner_id
+    
 
     if (booking.owner_id) {
       const [[user]] = await connection.execute(
@@ -490,6 +491,8 @@ router.post("/offline", async (req, res) => {
         .toString()
         .padStart(2, "0")}/${d.getFullYear()}`;
     };
+
+    
 
     const remainingAmount = booking.total_amount - booking.advance_amount;
 
@@ -916,6 +919,9 @@ router.post("/payments/payu", async (req, res) => {
 // });
 
 // POST /verify/:txnid - Handle PayU callback (UPDATED)
+
+
+
 
 async function sendPdfEmail(params) {
   const {
@@ -2364,11 +2370,10 @@ router.get("/details/:txnid", async (req, res) => {
 
     return res.json({
       booking,
-
       accommodation,
-
       ownerEmail,
-
+      ownerPhone,
+      ownerName,
       bookedDate,
     });
   } catch (err) {

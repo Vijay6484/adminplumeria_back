@@ -2347,6 +2347,8 @@ router.get("/details/:txnid", async (req, res) => {
     ]);
 
     const ownerEmail = user[0].email;
+    const ownerPhone = user[0].phoneNumber;
+    const ownerName = user[0].name;
 
     const today = new Date();
 

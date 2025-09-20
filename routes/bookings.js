@@ -541,6 +541,8 @@ router.post("/offline", async (req, res) => {
       longitude: booking.longitude || "",
 
       ownerEmail: ownerEmail || "",
+      ownerName: ownerName || "",
+      ownerPhone: ownerPhone || "",
       rooms : booking.rooms || "",
       coupon: coupon || "",
       discount : discount || "",

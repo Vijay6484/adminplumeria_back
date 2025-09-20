@@ -468,6 +468,7 @@ router.post("/offline", async (req, res) => {
     
 
     if (booking.owner_id) {
+      console.log(`[DIAGNOSIS] Attempting to fetch user for owner_id: ${booking.owner_id}`);
       const [[user]] = await connection.execute(
         `
 
@@ -475,11 +476,13 @@ router.post("/offline", async (req, res) => {
 
       `,
         [booking.owner_id]
-      );
 
+      );
+       console.log('[DIAGNOSIS] Raw user data from database:', user);
       ownerEmail = user?.email || "team.digitaldiaries@gmail.com";
       ownerName = user?.name || "Vishal";
       ownerPhone = user?.phoneNumber || "9325296868";
+      console.log(`[DIAGNOSIS] Final values -> Name: ${ownerName}, Phone: ${ownerPhone}`);
     }
 
     await connection.commit();

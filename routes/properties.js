@@ -68,7 +68,9 @@ routes.get('/accommodations', async (req, res) => {
                 child_price,
                 max_guests,
                 created_at,
-                updated_at
+                updated_at,
+                MaxPersonVilla,
+                RatePerPerson
             FROM accommodations
         `;
 
@@ -174,6 +176,8 @@ routes.get('/accommodations', async (req, res) => {
             features: processJsonField(row.features, []),
             images: processJsonField(row.images, []),
             amenities: processJsonField(row.amenity_ids, []),
+            max_person_villa: row.MaxPersonVilla,
+            rate_per_person: row.RatePerPerson,
             location: {
                 address: row.address,
                 coordinates: {

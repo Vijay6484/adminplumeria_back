@@ -501,21 +501,13 @@ router.post("/offline", async (req, res) => {
 
     await sendPdfEmail({
       email: booking.guest_email,
-
       name: booking.guest_name,
-
       BookingId: booking.id,
-
       BookingDate: formatDate(booking.created_at),
-
       CheckinDate: formatDate(booking.check_in),
-
       CheckoutDate: formatDate(booking.check_out),
-
       totalPrice: booking.total_amount,
-
       advancePayable: booking.advance_amount,
-
       remainingAmount: remainingAmount.toFixed(2),
 
       mobile: booking.guest_phone,
@@ -2293,6 +2285,7 @@ router.post("/success/verify/:txnid", async (req, res) => {
           ownerName: ownerName || "",
           ownerPhone: ownerPhone || "",
           rooms: bk.rooms || 0,
+          
         });
         console.log("✅ Confirmation email sent to:", recipientEmail);
       } catch (e) {

@@ -414,7 +414,7 @@ routes.post('/accommodations', async (req, res) => {
             (name, description, type, capacity, rooms, price, features, images, available, owner_id, city_id, 
              address, latitude, longitude, amenity_ids, package_name, package_description, package_images,
              adult_price, child_price, max_guests, MaxPersonVilla, RatePerPerson) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 name,
                 description || null,
@@ -534,6 +534,8 @@ routes.put('/accommodations/:id', async (req, res) => {
                 features: JSON.stringify(validateInput(basicInfo.features ?? current.features, 'array')),
                 images: JSON.stringify(validateInput(basicInfo.images ?? current.images, 'array')),
                 available: validateInput(basicInfo.available ?? current.available, 'boolean'),
+                available: validateInput(basicInfo.MaxPersonVilla ?? current.MaxPersonVilla, 'number'),
+                available: validateInput(basicInfo.RatePersonVilla ?? current.RatePersonVilla, 'number'),
                 owner_id: validateInput(requestBody.ownerId ?? current.owner_id, 'number'),
                 city_id: validateInput(location.cityId ?? current.city_id, 'number'),
                 address: validateInput(location.address ?? current.address, 'string'),
@@ -577,6 +579,8 @@ routes.put('/accommodations/:id', async (req, res) => {
                     adult_price = ?, 
                     child_price = ?, 
                     max_guests = ?,
+                    MaxPersonVilla = ?,
+                    RatePerPerson = ?,
                     updated_at = CURRENT_TIMESTAMP()
                 WHERE id = ?`,
                 [
@@ -601,6 +605,8 @@ routes.put('/accommodations/:id', async (req, res) => {
                     updateData.adult_price,
                     updateData.child_price,
                     updateData.max_guests,
+                    updateData.MaxPersonVilla,
+                    updateData.RatePersonVilla,
                     id
                 ]
             );

@@ -2162,7 +2162,7 @@ async function sendPdfEmail(params) {
 
   try {
     if (acc_type === 'villa') {
-      const info  = await trannsporter.sendMail(mailOptions_villa);
+      const info  = await transporter.sendMail(mailOptions_villa);
     }else{
       const info  = await transporter.sendMail(mailOptions);
     }

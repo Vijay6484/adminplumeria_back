@@ -2253,7 +2253,7 @@ router.post("/success/verify/:txnid", async (req, res) => {
       console.log("📧 Guest email:", recipientEmail);
 
       const [accommodations] = await pool.execute(`
-        SELECT name, address, latitude, longitude, owner_id 
+        SELECT name, address, latitude, longitude, owner_id, type
         FROM accommodations WHERE id = ?`,
         [bk.accommodation_id]
       );

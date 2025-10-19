@@ -290,7 +290,9 @@ routes.get('/accommodations/:id', async (req, res) => {
                 price: accommodation.price || 0,
                 available: isAvailable, // Using the availability flag
                 features: parseJSONField(accommodation.features, []),
-                images: parseJSONField(accommodation.images, [])
+                images: parseJSONField(accommodation.images, []),
+                MaxPersonVilla: accommodation.MaxPersonVilla || 0,
+                RatePersonVilla: accommodation.RatePerPerson || 0
             },
             location: {
                 owner: {

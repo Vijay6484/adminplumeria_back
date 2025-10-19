@@ -2123,7 +2123,7 @@ async function sendPdfEmail(params) {
 
 
 </html>`;
-  const html_villa = ``
+  const html_villa = ``;
 
   // ... (rest of the HTML template remains the same) ...
 

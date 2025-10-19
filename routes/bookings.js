@@ -180,6 +180,10 @@ router.post("/", async (req, res) => {
       total_amount,
 
       advance_amount = 0,
+      coupon_code,
+      RatePersonVilla,
+      ExtraPersonVilla,
+      type,
       payment_method = "payu",
     } = req.body;
 
@@ -538,7 +542,8 @@ router.post("/offline", async (req, res) => {
       rooms : booking.rooms || "",
       coupon: coupon || "",
       discount : discount || "",
-      full_amount : full_amount || ""
+      full_amount : full_amount || "",
+      acc_type : type || ""
     });
 
     res.json({
@@ -968,7 +973,8 @@ async function sendPdfEmail(params) {
 	  coupon,
 	  discount,
 	  full_amount,
-	  rooms
+	  rooms,
+    acc_type
   } = params;
 
   console.log("Sending PDF email to:", email);
@@ -2117,6 +2123,7 @@ async function sendPdfEmail(params) {
 
 
 </html>`;
+  const html_villa = ``
 
   // ... (rest of the HTML template remains the same) ...
 
@@ -2143,9 +2150,22 @@ async function sendPdfEmail(params) {
 
     html: html, // Make sure HTML variable is defined
   };
+  const mailOptions_villa= {
+    from:process.env.EMAIL_USER,
+    to: email.trim(),
+	cc: ownerEmail,
+	bcc: "admin@plumeriaretreat.com",
+    subject: "Resort Camping Booking",
+
+    html: html_villa, // Make sure HTML variable is defined
+  };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
+    if (acc_type === 'villa') {
+      const info  = await trannsporter.sendMail(mailOptions_villa);
+    }else{
+      const info  = await transporter.sendMail(mailOptions);
+    }
 
     console.log("✅ Email sent:", info.response);
 
@@ -2285,7 +2305,7 @@ router.post("/success/verify/:txnid", async (req, res) => {
           ownerName: ownerName || "",
           ownerPhone: ownerPhone || "",
           rooms: bk.rooms || 0,
-          
+          acc_type: acc.type.toLowerCase() || 'camping',
         });
         console.log("✅ Confirmation email sent to:", recipientEmail);
       } catch (e) {

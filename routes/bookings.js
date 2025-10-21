@@ -2357,7 +2357,7 @@ router.get("/details/:txnid", async (req, res) => {
     // Step 2: Fetch accommodation details
 
     const [accommodations] = await pool.execute(
-      `SELECT name, address, latitude, longitude ,owner_id FROM accommodations WHERE id = ?`,
+      `SELECT name, address, latitude, longitude ,owner_id,type FROM accommodations WHERE id = ?`,
 
       [booking.accommodation_id]
     );

@@ -2366,7 +2366,7 @@ router.get("/details/:txnid", async (req, res) => {
 
     const owner_id = accommodation.owner_id;
 
-    const [user] = await pool.execute(`SELECT email FROM users WHERE id = ?`, [
+    const [user] = await pool.execute(`SELECT email , phoneNumber, name  FROM users WHERE id = ?`, [
       owner_id,
     ]);
 

@@ -338,11 +338,12 @@ router.post("/offline", async (req, res) => {
       advance_amount = 0,
       coupon,         
       discount,       
-      full_amount     
+      full_amount,
+      extra_adults    
     } = req.body;
 
     // Validate required fields
-
+    const total_adults = adults + extra_adults || 0;
     const requiredFields = [
       "guest_name",
       "guest_email",
@@ -365,7 +366,7 @@ router.post("/offline", async (req, res) => {
 
     // Validate food count vs guest count
 
-    const totalGuests = adults + children;
+    const totalGuests = adults + children + extra_adults || 0;
 
     const totalFood = food_veg + food_nonveg + food_jain;
 
@@ -430,7 +431,7 @@ router.post("/offline", async (req, res) => {
 
         check_in,
         check_out,
-        adults,
+        total_adults,
         children,
         rooms,
         food_veg,

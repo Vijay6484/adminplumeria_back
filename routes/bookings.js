@@ -621,12 +621,8 @@ router.post("/offline", async (req, res) => {
           ownerEmail = user.email || "team.digitaldiaries@gmail.com";
           ownerName = user.name || "Vishal";
           ownerPhone = user.phoneNumber || "9325296868";
-        } else {
-          // Use defaults if owner not found
-          ownerEmail = "team.digitaldiaries@gmail.com";
-          ownerName = "Vishal";
-          ownerPhone = "9325296868";
-        }
+        } 
+
       } catch (ownerError) {
         // Log but don't fail the booking if owner fetch fails
         console.error("Error fetching owner details:", ownerError);
@@ -706,7 +702,7 @@ router.post("/offline", async (req, res) => {
       coupon: coupon || "",
       discount: discount || "",
       full_amount: full_amount || "",
-      acc_type: booking.accommodation_type || ""
+      acc_type: "villa"
     });
     } catch (emailError) {
       // Log email error but don't fail the response

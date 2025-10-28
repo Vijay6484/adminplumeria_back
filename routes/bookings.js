@@ -313,9 +313,22 @@ router.post("/", async (req, res) => {
 });
 
 router.post("/offline", async (req, res) => {
-  const connection = await pool.getConnection();
+  let connection = null;
 
   try {
+    // Get database connection with error handling
+    try {
+      connection = await pool.getConnection();
+    } catch (connError) {
+      console.error("Database connection error:", connError);
+      return res.status(503).json({
+        success: false,
+        error: "Database connection failed",
+        code: "CONNECTION_ERROR",
+        details: process.env.NODE_ENV === "development" ? connError.message : undefined,
+      });
+    }
+
     await connection.beginTransaction();
 
     const {
@@ -339,11 +352,10 @@ router.post("/offline", async (req, res) => {
       coupon,         
       discount,       
       full_amount,
-      extra_adults    
+      extra_adults = 0    
     } = req.body;
 
     // Validate required fields
-    const total_adults = adults + extra_adults || 0;
     const requiredFields = [
       "guest_name",
       "guest_email",
@@ -353,158 +365,308 @@ router.post("/offline", async (req, res) => {
       "total_amount",
     ];
 
-    const missingFields = requiredFields.filter((field) => !req.body[field]);
+    const missingFields = requiredFields.filter(
+      (field) => req.body[field] === undefined || req.body[field] === null || req.body[field] === ""
+    );
 
     if (missingFields.length > 0) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: `Missing required fields: ${missingFields.join(", ")}`,
-        });
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        error: `Missing required fields: ${missingFields.join(", ")}`,
+        code: "VALIDATION_ERROR"
+      });
     }
 
-    // Validate food count vs guest count
-
-    const totalGuests = adults + children + extra_adults || 0;
-
-    const totalFood = food_veg + food_nonveg + food_jain;
-
-    if (totalFood > 0 && totalFood !== totalGuests) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: "Food preferences must match total guests",
-        });
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(guest_email)) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        error: "Invalid email format",
+        code: "VALIDATION_ERROR"
+      });
     }
 
-    // Validate check-in/out dates
+    // Validate accommodation_id is a valid number
+    const accommodationIdNum = parseInt(accommodation_id);
+    if (isNaN(accommodationIdNum) || accommodationIdNum <= 0) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        error: "Invalid accommodation ID",
+        code: "VALIDATION_ERROR"
+      });
+    }
 
-    if (new Date(check_in) >= new Date(check_out)) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Check-out must be after check-in" });
+    // Validate accommodation exists before proceeding
+    try {
+      const [accommodations] = await connection.execute(
+        "SELECT id, owner_id, type FROM accommodations WHERE id = ?",
+        [accommodationIdNum]
+      );
+
+      if (accommodations.length === 0) {
+        await connection.rollback();
+        return res.status(404).json({
+          success: false,
+          error: "Accommodation not found",
+          code: "NOT_FOUND"
+        });
+      }
+    } catch (dbError) {
+      await connection.rollback();
+      console.error("Error checking accommodation:", dbError);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to validate accommodation",
+        code: "DATABASE_ERROR",
+        details: process.env.NODE_ENV === "development" ? dbError.message : undefined,
+      });
+    }
+
+    // Validate numeric values
+    const total_adults = (parseInt(adults) || 0) + (parseInt(extra_adults) || 0);
+    const childrenNum = parseInt(children) || 0;
+    const roomsNum = parseInt(rooms) || 1;
+    const foodVegNum = parseInt(food_veg) || 0;
+    const foodNonVegNum = parseInt(food_nonveg) || 0;
+    const foodJainNum = parseInt(food_jain) || 0;
+    const totalAmountNum = parseFloat(total_amount);
+    const advanceAmountNum = parseFloat(advance_amount) || 0;
+
+    // Validate numeric conversions
+    if (isNaN(totalAmountNum) || isNaN(advanceAmountNum)) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        error: "Invalid amount values - must be valid numbers",
+        code: "VALIDATION_ERROR"
+      });
     }
 
     // Validate positive values
-
-    if (total_amount <= 0 || advance_amount < 0) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Invalid amount values" });
+    if (totalAmountNum <= 0 || advanceAmountNum < 0) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        error: "Invalid amount values",
+        code: "VALIDATION_ERROR"
+      });
     }
 
-    if (adults < 1 || rooms < 1) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: "Must have at least 1 adult and 1 room",
-        });
+    if (total_adults < 1 || roomsNum < 1) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        error: "Must have at least 1 adult and 1 room",
+        code: "VALIDATION_ERROR"
+      });
+    }
+
+    // Validate check-in/out dates
+    const checkInDate = new Date(check_in);
+    const checkOutDate = new Date(check_out);
+
+    if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        error: "Invalid date format",
+        code: "VALIDATION_ERROR"
+      });
+    }
+
+    if (checkInDate >= checkOutDate) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        error: "Check-out must be after check-in",
+        code: "VALIDATION_ERROR"
+      });
+    }
+
+    // Validate food count vs guest count
+    const totalGuests = total_adults + childrenNum;
+    const totalFood = foodVegNum + foodNonVegNum + foodJainNum;
+
+    if (totalFood > 0 && totalFood !== totalGuests) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        error: "Food preferences must match total guests",
+        code: "VALIDATION_ERROR"
+      });
     }
 
     const payment_status = "success";
-
     const payment_txn_id = `BOOK-${uuidv4()}`;
 
     // Insert into bookings
-
-    const [result] = await connection.execute(
-      `
-
-      INSERT INTO bookings (
-
-        guest_name, guest_email, guest_phone, accommodation_id,
-
-        check_in, check_out, adults, children, rooms, food_veg, food_nonveg,
-
-        food_jain, total_amount, advance_amount, payment_status, payment_txn_id, created_at
-
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-
-      [
-        guest_name,
-        guest_email,
-        guest_phone || null,
-        accommodation_id,
-
-        check_in,
-        check_out,
-        total_adults,
-        children,
-        rooms,
-        food_veg,
-        food_nonveg,
-
-        food_jain,
-        total_amount,
-        advance_amount,
-        payment_status,
-        payment_txn_id,
-        new Date(),
-      ]
-    );
+    let result;
+    try {
+      [result] = await connection.execute(
+        `INSERT INTO bookings (
+          guest_name, guest_email, guest_phone, accommodation_id,
+          check_in, check_out, adults, children, rooms, food_veg, food_nonveg,
+          food_jain, total_amount, advance_amount, payment_status, payment_txn_id, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          guest_name,
+          guest_email,
+          guest_phone || null,
+          accommodationIdNum,
+          check_in,
+          check_out,
+          total_adults,
+          childrenNum,
+          roomsNum,
+          foodVegNum,
+          foodNonVegNum,
+          foodJainNum,
+          totalAmountNum,
+          advanceAmountNum,
+          payment_status,
+          payment_txn_id,
+          new Date(),
+        ]
+      );
+    } catch (insertError) {
+      await connection.rollback();
+      
+      // Handle specific database errors
+      if (insertError.code === "ER_NO_REFERENCED_ROW_2") {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid accommodation reference",
+          code: "FOREIGN_KEY_ERROR"
+        });
+      } else if (insertError.code === "ER_BAD_NULL_ERROR") {
+        return res.status(400).json({
+          success: false,
+          error: "Required field is missing",
+          code: "NULL_CONSTRAINT_ERROR",
+          details: process.env.NODE_ENV === "development" ? insertError.sqlMessage : undefined
+        });
+      } else if (insertError.code === "ER_DUP_ENTRY") {
+        return res.status(409).json({
+          success: false,
+          error: "Duplicate booking entry",
+          code: "DUPLICATE_ENTRY"
+        });
+      }
+      
+      console.error("Error inserting booking:", insertError);
+      throw insertError; // Re-throw to be caught by outer catch
+    }
 
     const booking_id = result.insertId;
+    if (!booking_id) {
+      await connection.rollback();
+      return res.status(500).json({
+        success: false,
+        error: "Failed to create booking - no ID returned",
+        code: "DATABASE_ERROR"
+      });
+    }
 
     // Fetch booking details with accommodation
+    let booking;
+    try {
+      const [bookings] = await connection.execute(
+        `SELECT b.*, a.name AS accommodation_name, a.address AS accommodation_address,
+         a.latitude, a.longitude, a.owner_id, a.type AS accommodation_type
+         FROM bookings b
+         JOIN accommodations a ON b.accommodation_id = a.id
+         WHERE b.id = ?`,
+        [booking_id]
+      );
 
-    const [[booking]] = await connection.execute(
-      `
+      if (bookings.length === 0) {
+        await connection.rollback();
+        return res.status(500).json({
+          success: false,
+          error: "Booking created but could not be retrieved",
+          code: "DATABASE_ERROR"
+        });
+      }
 
-      SELECT b.*, a.name AS accommodation_name, a.address AS accommodation_address,
-
-             a.latitude, a.longitude, a.owner_id
-
-      FROM bookings b
-
-      JOIN accommodations a ON b.accommodation_id = a.id
-
-      WHERE b.id = ?`,
-      [booking_id]
-    );
+      booking = bookings[0];
+    } catch (fetchError) {
+      await connection.rollback();
+      console.error("Error fetching booking:", fetchError);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to retrieve booking details",
+        code: "DATABASE_ERROR",
+        details: process.env.NODE_ENV === "development" ? fetchError.message : undefined,
+      });
+    }
 
     let ownerEmail = null;
     let ownerName = null;
     let ownerPhone = null;
 
     // Get owner details using owner_id
-    
-
     if (booking.owner_id) {
-      console.log(`[DIAGNOSIS] Attempting to fetch user for owner_id: ${booking.owner_id}`);
-      const [[user]] = await connection.execute(
-        `
+      try {
+        const [users] = await connection.execute(
+          "SELECT name, email, phoneNumber FROM users WHERE id = ?",
+          [booking.owner_id]
+        );
 
-        SELECT name, email, phoneNumber FROM users WHERE id = ?
-
-      `,
-        [booking.owner_id]
-
-      );
-       console.log('[DIAGNOSIS] Raw user data from database:', user);
-      ownerEmail = user?.email || "team.digitaldiaries@gmail.com";
-      ownerName = user?.name || "Vishal";
-      ownerPhone = user?.phoneNumber || "9325296868";
-      console.log(`[DIAGNOSIS] Final values -> Name: ${ownerName}, Phone: ${ownerPhone}`);
+        if (users.length > 0) {
+          const user = users[0];
+          ownerEmail = user.email || "team.digitaldiaries@gmail.com";
+          ownerName = user.name || "Vishal";
+          ownerPhone = user.phoneNumber || "9325296868";
+        } else {
+          // Use defaults if owner not found
+          ownerEmail = "team.digitaldiaries@gmail.com";
+          ownerName = "Vishal";
+          ownerPhone = "9325296868";
+        }
+      } catch (ownerError) {
+        // Log but don't fail the booking if owner fetch fails
+        console.error("Error fetching owner details:", ownerError);
+        ownerEmail = "team.digitaldiaries@gmail.com";
+        ownerName = "Vishal";
+        ownerPhone = "9325296868";
+      }
     }
 
-    await connection.commit();
+    // Commit transaction
+    try {
+      await connection.commit();
+    } catch (commitError) {
+      await connection.rollback();
+      console.error("Error committing transaction:", commitError);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to commit booking transaction",
+        code: "TRANSACTION_ERROR",
+        details: process.env.NODE_ENV === "development" ? commitError.message : undefined,
+      });
+    }
 
+    // Send email - don't fail the booking if email fails
     const formatDate = (dateStr) => {
-      const d = new Date(dateStr);
-
-      return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1)
-        .toString()
-        .padStart(2, "0")}/${d.getFullYear()}`;
+      try {
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return "";
+        return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1)
+          .toString()
+          .padStart(2, "0")}/${d.getFullYear()}`;
+      } catch (e) {
+        return "";
+      }
     };
-
-    
 
     const remainingAmount = booking.total_amount - booking.advance_amount;
 
-    await sendPdfEmail({
+    try {
+      await sendPdfEmail({
       email: booking.guest_email,
       name: booking.guest_name,
       BookingId: booking.id,
@@ -542,37 +704,83 @@ router.post("/offline", async (req, res) => {
       ownerPhone: ownerPhone || "",
       rooms : booking.rooms || "",
       coupon: coupon || "",
-      discount : discount || "",
-      full_amount : full_amount || "",
-      acc_type : type || ""
+      discount: discount || "",
+      full_amount: full_amount || "",
+      acc_type: booking.accommodation_type || ""
     });
+    } catch (emailError) {
+      // Log email error but don't fail the response
+      console.error("Error sending confirmation email:", emailError);
+      // Continue to send success response
+    }
 
     res.json({
       success: true,
-
       data: {
         booking,
-
         owner_email: ownerEmail,
         owner_name: ownerName,
         owner_phone: ownerPhone,
       },
     });
   } catch (error) {
-    await connection.rollback();
+    // Handle rollback with error handling
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error("Error during rollback:", rollbackError);
+      }
+    }
 
     console.error("Error creating booking:", error);
 
-    res.status(500).json({
+    // Determine error type and status code
+    let statusCode = 500;
+    let errorCode = "SERVER_ERROR";
+    let errorMessage = "Failed to create booking";
+
+    if (error.code) {
+      // MySQL error codes
+      if (error.code.startsWith("ER_")) {
+        statusCode = 400;
+        errorCode = "DATABASE_ERROR";
+        
+        if (error.code === "ER_ROW_IS_REFERENCED_2") {
+          errorMessage = "Cannot create booking - accommodation is referenced incorrectly";
+        } else if (error.code === "ER_BAD_FIELD_ERROR") {
+          errorMessage = "Invalid field in database query";
+        } else if (error.code === "ER_NO_SUCH_TABLE") {
+          errorMessage = "Database table missing";
+          statusCode = 500;
+        }
+      } else if (error.code === "ECONNREFUSED" || error.code === "ETIMEDOUT") {
+        statusCode = 503;
+        errorCode = "DATABASE_CONNECTION_ERROR";
+        errorMessage = "Database connection unavailable";
+      }
+    }
+
+    res.status(statusCode).json({
       success: false,
-
-      error: "Failed to create booking",
-
-      details:
-        process.env.NODE_ENV === "development" ? error.message : undefined,
+      error: errorMessage,
+      code: errorCode,
+      details: process.env.NODE_ENV === "development" ? {
+        message: error.message,
+        sqlMessage: error.sqlMessage,
+        code: error.code,
+        sql: error.sql
+      } : undefined,
     });
   } finally {
-    connection.release();
+    // Always release connection
+    if (connection) {
+      try {
+        connection.release();
+      } catch (releaseError) {
+        console.error("Error releasing connection:", releaseError);
+      }
+    }
   }
 });
 

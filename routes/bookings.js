@@ -352,9 +352,17 @@ router.post("/offline", async (req, res) => {
       coupon,         
       discount,       
       full_amount,
-      extra_adults = 0    
+      extra_adults = 0,
+      isvilla  
     } = req.body;
 
+    const acc_type = "resort"
+
+    if (isvilla){
+      const acc_type = "villa";
+    }else {
+      const acc_type = 'resort';
+    }
     // Validate required fields
     const requiredFields = [
       "guest_name",
@@ -618,17 +626,17 @@ router.post("/offline", async (req, res) => {
 
         if (users.length > 0) {
           const user = users[0];
-          ownerEmail = user.email || "team.digitaldiaries@gmail.com";
-          ownerName = user.name || "Vishal";
-          ownerPhone = user.phoneNumber || "9325296868";
+          ownerEmail = user.email || "babukale60@gmail.com";
+          ownerName = user.name || "babu kale";
+          ownerPhone = user.phoneNumber || "9923366051";
         } 
 
       } catch (ownerError) {
         // Log but don't fail the booking if owner fetch fails
         console.error("Error fetching owner details:", ownerError);
-        ownerEmail = "team.digitaldiaries@gmail.com";
-        ownerName = "Vishal";
-        ownerPhone = "9325296868";
+        ownerEmail = "babukale60@gmail.com";
+        ownerName = "babu kale";
+        ownerPhone = "9923366051";
       }
     }
 
@@ -702,7 +710,7 @@ router.post("/offline", async (req, res) => {
       coupon: coupon || "",
       discount: discount || "",
       full_amount: full_amount || "",
-      acc_type: "villa"
+      acc_type: acc_type
     });
     } catch (emailError) {
       // Log email error but don't fail the response
@@ -2329,6 +2337,7 @@ async function sendPdfEmail(params) {
 
 </html>`;
   const html_villa = ``;
+
 
   // ... (rest of the HTML template remains the same) ...
 

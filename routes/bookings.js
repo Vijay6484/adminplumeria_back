@@ -356,13 +356,7 @@ router.post("/offline", async (req, res) => {
       isvilla  
     } = req.body;
 
-    const acc_type = "resort"
-
-    if (isvilla){
-      const acc_type = "villa";
-    }else {
-      const acc_type = 'resort';
-    }
+    
     // Validate required fields
     const requiredFields = [
       "guest_name",
@@ -710,7 +704,7 @@ router.post("/offline", async (req, res) => {
       coupon: coupon || "",
       discount: discount || "",
       full_amount: full_amount || "",
-      acc_type: acc_type
+      acc_type: isvilla ? "villa" : "resort"
     });
     } catch (emailError) {
       // Log email error but don't fail the response

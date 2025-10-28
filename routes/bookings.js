@@ -3044,8 +3044,6 @@ async function sendPdfEmail(params) {
 
                                         <p style="padding-bottom: 5px;margin: 0px;">Check Out: <b>${CheckoutDate}</b></p>
 
-                                        <p style="padding-bottom: 5px;margin: 0px;">Total Person: <b>${totalPerson}</b></p>
-
                                         <p style="padding-bottom: 5px;margin: 0px;">Total Guest: <b>${adult}</b></p>
 
                                        
